@@ -17,11 +17,11 @@ defmodule TomatoWeb.TimerLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="flex flex-col items-center justify-center min-h-[60vh]" id="timer-container">
-        <h1 class="text-2xl font-bold tracking-tight mb-8">Tomato Focus</h1>
+        <h1 class="text-2xl tracking-tight mb-8">Tomato Focus</h1>
 
         <div
           id="timer-display"
-          class="font-mono text-8xl sm:text-9xl font-bold tracking-widest tabular-nums select-none mb-12"
+          class="text-8xl sm:text-9xl font-bold tracking-widest tabular-nums select-none mb-12"
         >
           {format_display(@seconds_remaining)}
         </div>
@@ -33,8 +33,7 @@ defmodule TomatoWeb.TimerLive do
               phx-click="pause"
               class="btn btn-warning btn-lg min-w-32 transition-all duration-200 hover:scale-105"
             >
-              <.icon name="hero-pause-solid" class="size-5 mr-1" />
-              Pause
+              <.icon name="hero-pause-solid" class="size-5 mr-1" /> Pause
             </button>
           <% else %>
             <button
@@ -43,7 +42,7 @@ defmodule TomatoWeb.TimerLive do
               class="btn btn-primary btn-lg min-w-32 transition-all duration-200 hover:scale-105"
             >
               <.icon name="hero-play-solid" class="size-5 mr-1" />
-              <%= if @status == :paused, do: "Resume", else: "Start" %>
+              {if @status == :paused, do: "Resume", else: "Start"}
             </button>
           <% end %>
 
@@ -59,8 +58,7 @@ defmodule TomatoWeb.TimerLive do
               )
             ]}
           >
-            <.icon name="hero-arrow-path" class="size-5 mr-1" />
-            Reset
+            <.icon name="hero-arrow-path" class="size-5 mr-1" /> Reset
           </button>
         </div>
 
