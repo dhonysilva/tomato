@@ -50,8 +50,7 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
 
   allowed_origins =
-    System.get_env("PHX_ALLOWED_ORIGIN")
-    |> case do
+    case System.get_env("PHX_ALLOWED_ORIGIN") do
       nil ->
         ["https://#{host}"]
 
@@ -59,6 +58,11 @@ if config_env() == :prod do
         origins
         |> String.split(",", trim: true)
         |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+        |> case do
+          [] -> ["https://#{host}"]
+          list -> list
+        end
     end
 
   config :tomato, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
@@ -73,8 +77,7 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
     secret_key_base: secret_key_base,
-    check_origin: allowed_origins,
-    server: true
+    check_origin: allowed_origins
 
   # ## SSL Support
   #
