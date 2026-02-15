@@ -8,6 +8,7 @@ defmodule TomatoWeb.TimerLive do
      assign(socket,
        page_title: "Timer",
        seconds_remaining: @initial_seconds,
+       initial_seconds: @initial_seconds,
        status: :stopped,
        timer_ref: nil
      )}
@@ -49,10 +50,10 @@ defmodule TomatoWeb.TimerLive do
           <button
             id="reset-btn"
             phx-click="reset"
-            disabled={@status == :stopped and @seconds_remaining == 25 * 60}
+            disabled={@status == :stopped and @seconds_remaining == @initial_seconds}
             class={[
               "btn btn-lg min-w-32 transition-all duration-200",
-              if(@status == :stopped and @seconds_remaining == 25 * 60,
+              if(@status == :stopped and @seconds_remaining == @initial_seconds,
                 do: "btn-disabled btn-ghost opacity-50",
                 else: "btn-ghost hover:scale-105"
               )
@@ -85,6 +86,7 @@ defmodule TomatoWeb.TimerLive do
         do: @initial_seconds,
         else: socket.assigns.seconds_remaining
 
+    if socket.assigns.timer_ref, do: Process.cancel_timer(socket.assigns.timer_ref)
     ref = Process.send_after(self(), :tick, 1000)
 
     {:noreply,
