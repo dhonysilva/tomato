@@ -1,4 +1,4 @@
-defmodule TomatoWeb.PageControllerTest do
+defmodule TomatoWeb.TimerLiveTest do
   use TomatoWeb.ConnCase
 
   import Phoenix.LiveViewTest

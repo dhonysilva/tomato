@@ -17,7 +17,7 @@ defmodule TomatoWeb.Router do
   scope "/", TomatoWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", TimerLive
   end
 
   # Other scopes may use custom stacks.
