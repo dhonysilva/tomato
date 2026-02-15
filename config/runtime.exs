@@ -49,6 +49,18 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
 
+  allowed_origins =
+    System.get_env("PHX_ALLOWED_ORIGIN")
+    |> case do
+      nil ->
+        ["https://#{host}"]
+
+      origins ->
+        origins
+        |> String.split(",", trim: true)
+        |> Enum.map(&String.trim/1)
+    end
+
   config :tomato, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :tomato, TomatoWeb.Endpoint,
@@ -60,7 +72,9 @@ if config_env() == :prod do
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    check_origin: allowed_origins,
+    server: true
 
   # ## SSL Support
   #
