@@ -16,11 +16,11 @@ config :tomato, Tomato.Repo,
 config :tomato, TomatoWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 4000],
+  http: [ip: {127, 0, 0, 1}],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "3+wYJYi0Zf5gaMikXc8Chu0zsNrm3WJ7x+vwOiC/JdE53IrqUnLfD5+BD8E+vCIP",
+  secret_key_base: "aBqtw6Lqu6grU2A2+nfQYb0ynQ8DpafsXrOfyAmVDVUHnrcvkAq+HNx9H5TyvVm8",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:tomato, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:tomato, ~w(--watch)]}
@@ -49,13 +49,18 @@ config :tomato, TomatoWeb.Endpoint,
 # configured to run both http and https servers on
 # different ports.
 
-# Watch static and templates for browser reloading.
+# Reload browser tabs when matching files change.
 config :tomato, TomatoWeb.Endpoint,
   live_reload: [
+    web_console_logger: true,
     patterns: [
-      ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
-      ~r"priv/gettext/.*(po)$",
-      ~r"lib/tomato_web/(controllers|live|components)/.*(ex|heex)$"
+      # Static assets, except user uploads
+      ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$",
+      # Gettext translations
+      ~r"priv/gettext/.*\.po$",
+      # Router, Controllers, LiveViews and LiveComponents
+      ~r"lib/tomato_web/router\.ex$",
+      ~r"lib/tomato_web/(controllers|live|components)/.*\.(ex|heex)$"
     ]
   ]
 
@@ -63,7 +68,7 @@ config :tomato, TomatoWeb.Endpoint,
 config :tomato, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n"
+config :logger, :default_formatter, format: "[$level] $message\n"
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
@@ -73,8 +78,10 @@ config :phoenix, :stacktrace_depth, 20
 config :phoenix, :plug_init_mode, :runtime
 
 config :phoenix_live_view,
-  # Include HEEx debug annotations as HTML comments in rendered markup
+  # Include debug annotations and locations in rendered markup.
+  # Changing this configuration will require mix clean and a full recompile.
   debug_heex_annotations: true,
+  debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
 

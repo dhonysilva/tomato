@@ -14,7 +14,7 @@ config :tomato, Tomato.Repo,
 # you can enable the server option below.
 config :tomato, TomatoWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "juZx2tfi3qXEMsn476g2dK0nSc3euZfCJPIg+Odon8Tue1ZSrNo9MTa7vKFFl5w1",
+  secret_key_base: "MfMef6aPvDpKAG07L8FLJQ7PH/r5yBHrgwFJPk/EbbRoDuKy8/76CPrvaun13Mq0",
   server: false
 
 # In test we don't send emails
@@ -32,3 +32,7 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Sort query params output of verified routes for robust url comparisons
+config :phoenix,
+  sort_verified_routes_query_params: true

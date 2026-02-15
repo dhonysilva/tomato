@@ -11,12 +11,9 @@ defmodule Tomato.Application do
       TomatoWeb.Telemetry,
       Tomato.Repo,
       {Ecto.Migrator,
-        repos: Application.fetch_env!(:tomato, :ecto_repos),
-        skip: skip_migrations?()},
+       repos: Application.fetch_env!(:tomato, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:tomato, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Tomato.PubSub},
-      # Start the Finch HTTP client for sending emails
-      {Finch, name: Tomato.Finch},
       # Start a worker by calling: Tomato.Worker.start_link(arg)
       # {Tomato.Worker, arg},
       # Start to serve requests, typically the last entry
@@ -39,6 +36,6 @@ defmodule Tomato.Application do
 
   defp skip_migrations?() do
     # By default, sqlite migrations are run when using a release
-    System.get_env("RELEASE_NAME") != nil
+    System.get_env("RELEASE_NAME") == nil
   end
 end

@@ -38,9 +38,7 @@ defmodule TomatoWeb do
 
   def controller do
     quote do
-      use Phoenix.Controller,
-        formats: [:html, :json],
-        layouts: [html: TomatoWeb.Layouts]
+      use Phoenix.Controller, formats: [:html, :json]
 
       use Gettext, backend: TomatoWeb.Gettext
 
@@ -52,8 +50,7 @@ defmodule TomatoWeb do
 
   def live_view do
     quote do
-      use Phoenix.LiveView,
-        layout: {TomatoWeb.Layouts, :app}
+      use Phoenix.LiveView
 
       unquote(html_helpers())
     end
@@ -90,8 +87,9 @@ defmodule TomatoWeb do
       # Core UI components
       import TomatoWeb.CoreComponents
 
-      # Shortcut for generating JS commands
+      # Common modules used in templates
       alias Phoenix.LiveView.JS
+      alias TomatoWeb.Layouts
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
