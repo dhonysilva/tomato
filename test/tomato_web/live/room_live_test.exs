@@ -20,9 +20,9 @@ defmodule TomatoWeb.RoomLiveTest do
     assert html =~ "/room/ABC123"
   end
 
-  test "shows QR code section", %{conn: conn} do
+  test "shows QR code", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/room/ABC123")
-    assert html =~ "Show QR Code"
+    assert html =~ "<svg"
   end
 
   test "shows member count", %{conn: conn} do

@@ -23,7 +23,7 @@ defmodule TomatoWeb.RoomLive do
     members = extract_members(presences)
 
     room_url = TomatoWeb.Endpoint.url() <> ~p"/room/#{code}"
-    qr_svg = room_url |> EQRCode.encode() |> EQRCode.svg(width: 200, viewbox: true)
+    qr_svg = room_url |> EQRCode.encode() |> EQRCode.svg(width: 200)
 
     {:ok,
      assign(socket,
@@ -154,14 +154,9 @@ defmodule TomatoWeb.RoomLive do
               <.icon name="hero-clipboard-document" class="size-4" />
             </button>
           </div>
-          <details class="collapse collapse-arrow bg-base-200 rounded-lg max-w-xs">
-            <summary class="collapse-title text-sm font-medium py-2 min-h-0">
-              Show QR Code
-            </summary>
-            <div class="collapse-content flex justify-center pb-4">
-              {Phoenix.HTML.raw(@qr_svg)}
-            </div>
-          </details>
+          <div class="flex justify-center">
+            {Phoenix.HTML.raw(@qr_svg)}
+          </div>
         </div>
       </div>
     </Layouts.app>
