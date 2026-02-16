@@ -9,7 +9,7 @@ defmodule Tomato.RoomCode do
   end
 
   def valid?(code) when is_binary(code) do
-    Regex.match?(~r/^[A-Z2-9]{6}$/, code)
+    Regex.match?(~r/^[A-HJ-NP-Z2-9]{6}$/, code)
   end
 
   def valid?(_), do: false
