@@ -97,8 +97,7 @@ defmodule TomatoWeb.RoomLive do
 
         <div class="w-full max-w-lg" id="room-members">
           <h2 class="text-sm font-semibold text-base-content/70 mb-3">
-            <.icon name="hero-user-group" class="size-4 mr-1" />
-            In this room ({map_size(@members)})
+            <.icon name="hero-user-group" class="size-4 mr-1" /> In this room ({map_size(@members)})
           </h2>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <%= for {uid, member} <- @members do %>
@@ -146,9 +145,7 @@ defmodule TomatoWeb.RoomLive do
             />
             <button
               id="copy-link-btn"
-              phx-click={
-                JS.dispatch("phx:copy", to: "#room-url-input")
-              }
+              phx-click={JS.dispatch("phx:copy", to: "#room-url-input")}
               class="btn btn-sm btn-ghost"
             >
               <.icon name="hero-clipboard-document" class="size-4" />
@@ -283,12 +280,16 @@ defmodule TomatoWeb.RoomLive do
   end
 
   defp extract_members(presences) do
-    Map.new(presences, fn {user_id, %{metas: [meta | _]}} ->
-      {user_id, %{
-        display_name: meta.display_name,
-        status: meta.status,
-        seconds_remaining: meta.seconds_remaining
-      }}
+    Enum.reduce(presences, %{}, fn
+      {user_id, %{metas: [meta | _]}}, acc ->
+        Map.put(acc, user_id, %{
+          display_name: meta.display_name,
+          status: meta.status,
+          seconds_remaining: meta.seconds_remaining
+        })
+
+      {_user_id, %{metas: []}}, acc ->
+        acc
     end)
   end
 
