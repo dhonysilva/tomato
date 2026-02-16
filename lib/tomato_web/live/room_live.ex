@@ -1,6 +1,8 @@
 defmodule TomatoWeb.RoomLive do
   use TomatoWeb, :live_view
 
+  import TomatoWeb.TimerHelpers, only: [format_display: 1]
+
   @initial_seconds 25 * 60
 
   def mount(%{"code" => code}, session, socket) do
@@ -293,10 +295,4 @@ defmodule TomatoWeb.RoomLive do
     end)
   end
 
-  defp format_display(total_seconds) do
-    minutes = div(total_seconds, 60)
-    seconds = rem(total_seconds, 60)
-
-    "#{String.pad_leading(Integer.to_string(minutes), 2, "0")}:#{String.pad_leading(Integer.to_string(seconds), 2, "0")}"
-  end
 end
