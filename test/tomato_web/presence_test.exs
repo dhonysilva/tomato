@@ -3,7 +3,7 @@ defmodule TomatoWeb.PresenceTest do
 
   import Phoenix.LiveViewTest
 
-  @room_code "TESTROOM"
+  @room_code "TSTRM2"
 
   test "user is tracked in presence when joining a room", %{conn: conn} do
     {:ok, _view, _html} = live(conn, ~p"/room/#{@room_code}")

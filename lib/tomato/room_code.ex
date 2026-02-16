@@ -7,4 +7,10 @@ defmodule Tomato.RoomCode do
       <<Enum.random(@alphabet)>>
     end)
   end
+
+  def valid?(code) when is_binary(code) do
+    Regex.match?(~r/^[A-Z2-9]{6}$/, code)
+  end
+
+  def valid?(_), do: false
 end

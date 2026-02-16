@@ -7,6 +7,11 @@ defmodule TomatoWeb.RoomLive do
 
   def mount(%{"code" => code}, session, socket) do
     code = String.upcase(code)
+
+    unless Tomato.RoomCode.valid?(code) do
+      raise TomatoWeb.InvalidRoomCodeError, code: code
+    end
+
     user_id = session["user_id"]
     display_name = "Tomato-#{String.slice(user_id, 0, 4)}"
     topic = "room:#{code}"

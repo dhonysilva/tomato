@@ -27,4 +27,21 @@ defmodule Tomato.RoomCodeTest do
     codes = for _ <- 1..100, do: RoomCode.generate()
     assert length(Enum.uniq(codes)) == 100
   end
+
+  test "valid?/1 accepts valid 6-char codes" do
+    assert RoomCode.valid?("ABC234")
+    assert RoomCode.valid?("TMKX29")
+    assert RoomCode.valid?(RoomCode.generate())
+  end
+
+  test "valid?/1 rejects invalid codes" do
+    refute RoomCode.valid?("")
+    refute RoomCode.valid?("ABC")
+    refute RoomCode.valid?("ABC2345")
+    refute RoomCode.valid?("abc234")
+    refute RoomCode.valid?("ABC 34")
+    refute RoomCode.valid?("ABC0I1")
+    refute RoomCode.valid?("../../x")
+    refute RoomCode.valid?(nil)
+  end
 end
