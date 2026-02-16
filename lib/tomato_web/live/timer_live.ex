@@ -75,9 +75,24 @@ defmodule TomatoWeb.TimerLive do
               Ready to focus?
           <% end %>
         </p>
+
+        <div class="mt-12">
+          <button
+            id="create-room-btn"
+            phx-click="create_room"
+            class="btn btn-secondary btn-sm"
+          >
+            <.icon name="hero-user-group" class="size-4 mr-1" /> Create Room
+          </button>
+        </div>
       </div>
     </Layouts.app>
     """
+  end
+
+  def handle_event("create_room", _params, socket) do
+    code = Tomato.RoomCode.generate()
+    {:noreply, push_navigate(socket, to: ~p"/room/#{code}")}
   end
 
   def handle_event("start", _params, socket) do

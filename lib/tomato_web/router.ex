@@ -8,6 +8,7 @@ defmodule TomatoWeb.Router do
     plug :put_root_layout, html: {TomatoWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug TomatoWeb.Plugs.EnsureUserId
   end
 
   pipeline :api do
@@ -18,6 +19,7 @@ defmodule TomatoWeb.Router do
     pipe_through :browser
 
     live "/", TimerLive
+    live "/room/:code", RoomLive
   end
 
   # Other scopes may use custom stacks.

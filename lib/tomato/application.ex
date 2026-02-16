@@ -14,8 +14,7 @@ defmodule Tomato.Application do
        repos: Application.fetch_env!(:tomato, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:tomato, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Tomato.PubSub},
-      # Start a worker by calling: Tomato.Worker.start_link(arg)
-      # {Tomato.Worker, arg},
+      TomatoWeb.Presence,
       # Start to serve requests, typically the last entry
       TomatoWeb.Endpoint
     ]
