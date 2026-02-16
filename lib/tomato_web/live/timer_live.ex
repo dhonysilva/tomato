@@ -1,6 +1,8 @@
 defmodule TomatoWeb.TimerLive do
   use TomatoWeb, :live_view
 
+  import TomatoWeb.TimerHelpers, only: [format_display: 1]
+
   @initial_seconds 25 * 60
 
   def mount(_params, _session, socket) do
@@ -75,9 +77,24 @@ defmodule TomatoWeb.TimerLive do
               Ready to focus?
           <% end %>
         </p>
+
+        <div class="mt-12">
+          <button
+            id="create-room-btn"
+            phx-click="create_room"
+            class="btn btn-secondary btn-sm"
+          >
+            <.icon name="hero-user-group" class="size-4 mr-1" /> Create Room
+          </button>
+        </div>
       </div>
     </Layouts.app>
     """
+  end
+
+  def handle_event("create_room", _params, socket) do
+    code = Tomato.RoomCode.generate()
+    {:noreply, push_navigate(socket, to: ~p"/room/#{code}")}
   end
 
   def handle_event("start", _params, socket) do
@@ -143,10 +160,4 @@ defmodule TomatoWeb.TimerLive do
     end
   end
 
-  defp format_display(total_seconds) do
-    minutes = div(total_seconds, 60)
-    seconds = rem(total_seconds, 60)
-
-    "#{String.pad_leading(Integer.to_string(minutes), 2, "0")}:#{String.pad_leading(Integer.to_string(seconds), 2, "0")}"
-  end
 end
