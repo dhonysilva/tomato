@@ -75,7 +75,7 @@ end
 - Personal timer (large MM:SS) with Start/Pause/Reset buttons
 - Members grid: cards showing each user's name, timer value, and status (Focusing/Paused/Idle/Done)
 - Current user's card highlighted with a ring
-- Share section: copyable URL input + QR code in a collapsible `<details>`
+- Share section: copyable URL input + QR code
 
 ### Step 6: Update TimerLive
 
