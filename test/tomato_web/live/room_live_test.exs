@@ -61,4 +61,33 @@ defmodule TomatoWeb.RoomLiveTest do
     send(view.pid, :tick)
     assert render(view) =~ "24:59"
   end
+
+  test "timer updates are broadcast between clients in the same room", %{conn: conn} do
+    {:ok, view1, _html1} = live(conn, ~p"/room/ABC123")
+
+    {:ok, view2, _html2} =
+      Phoenix.ConnTest.build_conn()
+      |> live(~p"/room/ABC123")
+
+    view1 |> element("#start-btn") |> render_click()
+    assert render(view1) =~ "Focusing"
+    assert render(view2) =~ "Focusing"
+    send(view1.pid, :tick)
+    assert render(view1) =~ "24:59"
+    assert render(view2) =~ "24:59"
+  end
+
+  test "member list and count update when additional users join", %{conn: conn} do
+    {:ok, view1, _html1} = live(conn, ~p"/room/ABC123")
+    initial_html = render(view1)
+    assert initial_html =~ "In this room"
+
+    {:ok, _view2, _html2} =
+      Phoenix.ConnTest.build_conn()
+      |> live(~p"/room/ABC123")
+
+    updated_html = render(view1)
+    assert updated_html =~ "In this room"
+    refute initial_html == updated_html
+  end
 end
