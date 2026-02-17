@@ -3,11 +3,10 @@ defmodule TomatoWeb.TimerLiveTest do
 
   import Phoenix.LiveViewTest
 
-  @test_user_id "test-timer-user"
-
   setup %{conn: conn} do
-    conn = conn |> init_test_session(%{user_id: @test_user_id})
-    {:ok, conn: conn}
+    user_id = "timer-#{System.unique_integer([:positive])}"
+    conn = conn |> init_test_session(%{user_id: user_id})
+    {:ok, conn: conn, user_id: user_id}
   end
 
   test "renders timer at 25:00 on mount", %{conn: conn} do
@@ -24,10 +23,10 @@ defmodule TomatoWeb.TimerLiveTest do
     assert html =~ "pause-btn"
   end
 
-  test "tick decrements timer", %{conn: conn} do
+  test "tick decrements timer", %{conn: conn, user_id: user_id} do
     {:ok, view, _html} = live(conn, ~p"/")
     view |> element("#start-btn") |> render_click()
-    send_tick(@test_user_id, :solo)
+    send_tick(user_id, :solo)
     assert render(view) =~ "24:59"
   end
 
@@ -41,10 +40,10 @@ defmodule TomatoWeb.TimerLiveTest do
     assert html =~ "Timer paused"
   end
 
-  test "reset button restores 25:00", %{conn: conn} do
+  test "reset button restores 25:00", %{conn: conn, user_id: user_id} do
     {:ok, view, _html} = live(conn, ~p"/")
     view |> element("#start-btn") |> render_click()
-    send_tick(@test_user_id, :solo)
+    send_tick(user_id, :solo)
     render(view)
     view |> element("#pause-btn") |> render_click()
     render(view)

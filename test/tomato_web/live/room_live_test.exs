@@ -3,11 +3,10 @@ defmodule TomatoWeb.RoomLiveTest do
 
   import Phoenix.LiveViewTest
 
-  @test_user_id "test-room-user"
-
   setup %{conn: conn} do
-    conn = conn |> init_test_session(%{user_id: @test_user_id})
-    {:ok, conn: conn}
+    user_id = "room-#{System.unique_integer([:positive])}"
+    conn = conn |> init_test_session(%{user_id: user_id})
+    {:ok, conn: conn, user_id: user_id}
   end
 
   test "mounts with room code and timer at 25:00", %{conn: conn} do
@@ -56,10 +55,10 @@ defmodule TomatoWeb.RoomLiveTest do
     assert html =~ "Paused"
   end
 
-  test "reset button restores 25:00", %{conn: conn} do
+  test "reset button restores 25:00", %{conn: conn, user_id: user_id} do
     {:ok, view, _html} = live(conn, ~p"/room/ABC234")
     view |> element("#start-btn") |> render_click()
-    send_tick(@test_user_id, "ABC234")
+    send_tick(user_id, "ABC234")
     render(view)
     view |> element("#pause-btn") |> render_click()
     render(view)
@@ -67,25 +66,25 @@ defmodule TomatoWeb.RoomLiveTest do
     assert render(view) =~ "25:00"
   end
 
-  test "tick decrements timer", %{conn: conn} do
+  test "tick decrements timer", %{conn: conn, user_id: user_id} do
     {:ok, view, _html} = live(conn, ~p"/room/ABC234")
     view |> element("#start-btn") |> render_click()
-    send_tick(@test_user_id, "ABC234")
+    send_tick(user_id, "ABC234")
     assert render(view) =~ "24:59"
   end
 
-  test "timer updates are broadcast between clients in the same room", %{conn: conn} do
+  test "timer updates are broadcast between clients in the same room", %{conn: conn, user_id: user_id} do
     {:ok, view1, _html1} = live(conn, ~p"/room/ABC234")
 
     {:ok, view2, _html2} =
       Phoenix.ConnTest.build_conn()
-      |> init_test_session(%{user_id: "second-room-user"})
+      |> init_test_session(%{user_id: "second-#{System.unique_integer([:positive])}"})
       |> live(~p"/room/ABC234")
 
     view1 |> element("#start-btn") |> render_click()
     assert render(view1) =~ "Focusing"
     assert render(view2) =~ "Focusing"
-    send_tick(@test_user_id, "ABC234")
+    send_tick(user_id, "ABC234")
     assert render(view1) =~ "24:59"
     assert render(view2) =~ "24:59"
   end
@@ -97,7 +96,7 @@ defmodule TomatoWeb.RoomLiveTest do
 
     {:ok, _view2, _html2} =
       Phoenix.ConnTest.build_conn()
-      |> init_test_session(%{user_id: "second-room-user"})
+      |> init_test_session(%{user_id: "second-#{System.unique_integer([:positive])}"})
       |> live(~p"/room/ABC234")
 
     updated_html = render(view1)
