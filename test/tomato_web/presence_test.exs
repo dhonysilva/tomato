@@ -4,6 +4,12 @@ defmodule TomatoWeb.PresenceTest do
   import Phoenix.LiveViewTest
 
   @room_code "TSTRM2"
+  @test_user_id "test-presence-user"
+
+  setup %{conn: conn} do
+    conn = conn |> init_test_session(%{user_id: @test_user_id})
+    {:ok, conn: conn}
+  end
 
   test "user is tracked in presence when joining a room", %{conn: conn} do
     {:ok, _view, _html} = live(conn, ~p"/room/#{@room_code}")
@@ -21,6 +27,8 @@ defmodule TomatoWeb.PresenceTest do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
+    # Process PubSub broadcast so Presence gets updated
+    render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
     [{_user_id, %{metas: [meta | _]}}] = Map.to_list(presences)
@@ -31,7 +39,9 @@ defmodule TomatoWeb.PresenceTest do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
+    render(view)
     view |> element("#pause-btn") |> render_click()
+    render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
     [{_user_id, %{metas: [meta | _]}}] = Map.to_list(presences)
@@ -42,9 +52,12 @@ defmodule TomatoWeb.PresenceTest do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
-    send(view.pid, :tick)
+    send_tick(@test_user_id, @room_code)
+    render(view)
     view |> element("#pause-btn") |> render_click()
+    render(view)
     view |> element("#reset-btn") |> render_click()
+    render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
     [{_user_id, %{metas: [meta | _]}}] = Map.to_list(presences)
@@ -56,8 +69,7 @@ defmodule TomatoWeb.PresenceTest do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
-    send(view.pid, :tick)
-    # Allow the handle_info to process
+    send_tick(@test_user_id, @room_code)
     render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
@@ -89,5 +101,11 @@ defmodule TomatoWeb.PresenceTest do
 
     presences_after = TomatoWeb.Presence.list("room:#{@room_code}")
     assert map_size(presences_after) == 0
+  end
+
+  defp send_tick(user_id, room_code) do
+    [{pid, _}] = Registry.lookup(Tomato.TimerRegistry, {user_id, room_code})
+    send(pid, :tick)
+    :sys.get_state(pid)
   end
 end
