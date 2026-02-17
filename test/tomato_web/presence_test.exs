@@ -5,6 +5,12 @@ defmodule TomatoWeb.PresenceTest do
 
   @room_code "TSTRM2"
 
+  setup %{conn: conn} do
+    user_id = "presence-#{System.unique_integer([:positive])}"
+    conn = conn |> init_test_session(%{user_id: user_id})
+    {:ok, conn: conn, user_id: user_id}
+  end
+
   test "user is tracked in presence when joining a room", %{conn: conn} do
     {:ok, _view, _html} = live(conn, ~p"/room/#{@room_code}")
 
@@ -21,6 +27,7 @@ defmodule TomatoWeb.PresenceTest do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
+    render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
     [{_user_id, %{metas: [meta | _]}}] = Map.to_list(presences)
@@ -31,20 +38,25 @@ defmodule TomatoWeb.PresenceTest do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
+    render(view)
     view |> element("#pause-btn") |> render_click()
+    render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
     [{_user_id, %{metas: [meta | _]}}] = Map.to_list(presences)
     assert meta.status == :paused
   end
 
-  test "presence updates when timer is reset", %{conn: conn} do
+  test "presence updates when timer is reset", %{conn: conn, user_id: user_id} do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
-    send(view.pid, :tick)
+    send_tick(user_id, @room_code)
+    render(view)
     view |> element("#pause-btn") |> render_click()
+    render(view)
     view |> element("#reset-btn") |> render_click()
+    render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
     [{_user_id, %{metas: [meta | _]}}] = Map.to_list(presences)
@@ -52,12 +64,11 @@ defmodule TomatoWeb.PresenceTest do
     assert meta.seconds_remaining == 25 * 60
   end
 
-  test "presence reflects timer tick", %{conn: conn} do
+  test "presence reflects timer tick", %{conn: conn, user_id: user_id} do
     {:ok, view, _html} = live(conn, ~p"/room/#{@room_code}")
 
     view |> element("#start-btn") |> render_click()
-    send(view.pid, :tick)
-    # Allow the handle_info to process
+    send_tick(user_id, @room_code)
     render(view)
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
@@ -68,8 +79,7 @@ defmodule TomatoWeb.PresenceTest do
   test "multiple users in the same room are tracked", %{conn: conn} do
     {:ok, _view1, _html} = live(conn, ~p"/room/#{@room_code}")
 
-    # Second user with a different session
-    conn2 = build_conn() |> init_test_session(%{user_id: "second-user"})
+    conn2 = build_conn() |> init_test_session(%{user_id: "second-#{System.unique_integer([:positive])}"})
     {:ok, _view2, _html} = live(conn2, ~p"/room/#{@room_code}")
 
     presences = TomatoWeb.Presence.list("room:#{@room_code}")
@@ -82,12 +92,16 @@ defmodule TomatoWeb.PresenceTest do
     presences_before = TomatoWeb.Presence.list("room:#{@room_code}")
     assert map_size(presences_before) == 1
 
-    # Stop the LiveView process to simulate disconnect
     GenServer.stop(view.pid)
-    # Give Presence time to process the down event
     Process.sleep(200)
 
     presences_after = TomatoWeb.Presence.list("room:#{@room_code}")
     assert map_size(presences_after) == 0
+  end
+
+  defp send_tick(user_id, room_code) do
+    [{pid, _}] = Registry.lookup(Tomato.TimerRegistry, {user_id, room_code})
+    send(pid, :tick)
+    :sys.get_state(pid)
   end
 end

@@ -3,16 +3,33 @@ defmodule TomatoWeb.TimerLive do
 
   import TomatoWeb.TimerHelpers, only: [format_display: 1]
 
+  alias Tomato.TimerServer
+
   @initial_seconds 25 * 60
 
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
+    user_id = session["user_id"]
+
+    {seconds_remaining, status} =
+      if connected?(socket) do
+        {:ok, _pid} = TimerServer.ensure_started(user_id, :solo)
+        Phoenix.PubSub.subscribe(Tomato.PubSub, TimerServer.topic(user_id, :solo))
+
+        case TimerServer.get_state(user_id, :solo) do
+          {:ok, state} -> {state.seconds_remaining, state.status}
+          {:error, :not_found} -> {@initial_seconds, :stopped}
+        end
+      else
+        {@initial_seconds, :stopped}
+      end
+
     {:ok,
      assign(socket,
        page_title: "Timer",
-       seconds_remaining: @initial_seconds,
+       user_id: user_id,
+       seconds_remaining: seconds_remaining,
        initial_seconds: @initial_seconds,
-       status: :stopped,
-       timer_ref: nil
+       status: status
      )}
   end
 
@@ -98,66 +115,25 @@ defmodule TomatoWeb.TimerLive do
   end
 
   def handle_event("start", _params, socket) do
-    seconds =
-      if socket.assigns.seconds_remaining == 0,
-        do: @initial_seconds,
-        else: socket.assigns.seconds_remaining
-
-    if socket.assigns.timer_ref, do: Process.cancel_timer(socket.assigns.timer_ref)
-    ref = Process.send_after(self(), :tick, 1000)
-
-    {:noreply,
-     assign(socket,
-       status: :running,
-       seconds_remaining: seconds,
-       timer_ref: ref
-     )}
+    TimerServer.start_timer(socket.assigns.user_id, :solo)
+    {:noreply, socket}
   end
 
   def handle_event("pause", _params, socket) do
-    if socket.assigns.timer_ref, do: Process.cancel_timer(socket.assigns.timer_ref)
-
-    {:noreply,
-     assign(socket,
-       status: :paused,
-       timer_ref: nil
-     )}
+    TimerServer.pause_timer(socket.assigns.user_id, :solo)
+    {:noreply, socket}
   end
 
   def handle_event("reset", _params, socket) do
-    if socket.assigns.timer_ref, do: Process.cancel_timer(socket.assigns.timer_ref)
+    TimerServer.reset_timer(socket.assigns.user_id, :solo)
+    {:noreply, socket}
+  end
 
+  def handle_info({:timer_update, payload}, socket) do
     {:noreply,
      assign(socket,
-       seconds_remaining: @initial_seconds,
-       status: :stopped,
-       timer_ref: nil
+       seconds_remaining: payload.seconds_remaining,
+       status: payload.status
      )}
   end
-
-  def handle_info(:tick, socket) do
-    if socket.assigns.status != :running do
-      {:noreply, socket}
-    else
-      new_seconds = socket.assigns.seconds_remaining - 1
-
-      if new_seconds <= 0 do
-        {:noreply,
-         assign(socket,
-           seconds_remaining: 0,
-           status: :stopped,
-           timer_ref: nil
-         )}
-      else
-        ref = Process.send_after(self(), :tick, 1000)
-
-        {:noreply,
-         assign(socket,
-           seconds_remaining: new_seconds,
-           timer_ref: ref
-         )}
-      end
-    end
-  end
-
 end

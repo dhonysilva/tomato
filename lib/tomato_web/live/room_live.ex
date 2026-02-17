@@ -3,6 +3,8 @@ defmodule TomatoWeb.RoomLive do
 
   import TomatoWeb.TimerHelpers, only: [format_display: 1]
 
+  alias Tomato.TimerServer
+
   @initial_seconds 25 * 60
 
   def mount(%{"code" => code}, session, socket) do
@@ -16,15 +18,35 @@ defmodule TomatoWeb.RoomLive do
     display_name = "Tomato-#{String.slice(user_id, 0, 4)}"
     topic = "room:#{code}"
 
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(Tomato.PubSub, topic)
+    {seconds_remaining, status} =
+      if connected?(socket) do
+        {:ok, _pid} = TimerServer.ensure_started(user_id, code)
+        Phoenix.PubSub.subscribe(Tomato.PubSub, topic)
 
-      TomatoWeb.Presence.track(self(), topic, user_id, %{
-        display_name: display_name,
-        status: :stopped,
-        seconds_remaining: @initial_seconds
-      })
-    end
+        # Track in Presence with default state first
+        TomatoWeb.Presence.track(self(), topic, user_id, %{
+          display_name: display_name,
+          status: :stopped,
+          seconds_remaining: @initial_seconds
+        })
+
+        # Then recover state from GenServer if it was already running
+        case TimerServer.get_state(user_id, code) do
+          {:ok, state} ->
+            TomatoWeb.Presence.update(self(), topic, user_id, %{
+              display_name: display_name,
+              status: state.status,
+              seconds_remaining: state.seconds_remaining
+            })
+
+            {state.seconds_remaining, state.status}
+
+          {:error, :not_found} ->
+            {@initial_seconds, :stopped}
+        end
+      else
+        {@initial_seconds, :stopped}
+      end
 
     presences = TomatoWeb.Presence.list(topic)
     members = extract_members(presences)
@@ -40,10 +62,9 @@ defmodule TomatoWeb.RoomLive do
        qr_svg: qr_svg,
        user_id: user_id,
        display_name: display_name,
-       seconds_remaining: @initial_seconds,
+       seconds_remaining: seconds_remaining,
        initial_seconds: @initial_seconds,
-       status: :stopped,
-       timer_ref: nil,
+       status: status,
        members: members
      )}
   end
@@ -167,96 +188,48 @@ defmodule TomatoWeb.RoomLive do
     """
   end
 
-  # Timer events
+  # Timer events — delegate to GenServer
 
   def handle_event("start", _params, socket) do
-    seconds =
-      if socket.assigns.seconds_remaining == 0,
-        do: @initial_seconds,
-        else: socket.assigns.seconds_remaining
-
-    if socket.assigns.timer_ref, do: Process.cancel_timer(socket.assigns.timer_ref)
-    ref = Process.send_after(self(), :tick, 1000)
-
-    socket =
-      assign(socket,
-        status: :running,
-        seconds_remaining: seconds,
-        timer_ref: ref
-      )
-
-    broadcast_timer_state(socket)
+    TimerServer.start_timer(socket.assigns.user_id, socket.assigns.room_code)
     {:noreply, socket}
   end
 
   def handle_event("pause", _params, socket) do
-    if socket.assigns.timer_ref, do: Process.cancel_timer(socket.assigns.timer_ref)
-
-    socket =
-      assign(socket,
-        status: :paused,
-        timer_ref: nil
-      )
-
-    broadcast_timer_state(socket)
+    TimerServer.pause_timer(socket.assigns.user_id, socket.assigns.room_code)
     {:noreply, socket}
   end
 
   def handle_event("reset", _params, socket) do
-    if socket.assigns.timer_ref, do: Process.cancel_timer(socket.assigns.timer_ref)
-
-    socket =
-      assign(socket,
-        seconds_remaining: @initial_seconds,
-        status: :stopped,
-        timer_ref: nil
-      )
-
-    broadcast_timer_state(socket)
+    TimerServer.reset_timer(socket.assigns.user_id, socket.assigns.room_code)
     {:noreply, socket}
   end
 
-  # Tick
-
-  def handle_info(:tick, socket) do
-    if socket.assigns.status != :running do
-      {:noreply, socket}
-    else
-      new_seconds = socket.assigns.seconds_remaining - 1
-
-      if new_seconds <= 0 do
-        socket =
-          assign(socket,
-            seconds_remaining: 0,
-            status: :stopped,
-            timer_ref: nil
-          )
-
-        broadcast_timer_state(socket)
-        {:noreply, socket}
-      else
-        ref = Process.send_after(self(), :tick, 1000)
-
-        socket =
-          assign(socket,
-            seconds_remaining: new_seconds,
-            timer_ref: ref
-          )
-
-        broadcast_timer_state(socket)
-        {:noreply, socket}
-      end
-    end
-  end
-
-  # Timer update from another user
+  # Timer update from GenServer (any user in the room, including self)
   def handle_info({:timer_update, %{user_id: uid} = payload}, socket) do
-    if uid == socket.assigns.user_id do
-      {:noreply, socket}
-    else
-      members = Map.put(socket.assigns.members, uid, payload)
-      {:noreply, assign(socket, members: members)}
-    end
+    member_update = %{
+      display_name: get_member_display_name(socket, uid),
+      status: payload.status,
+      seconds_remaining: payload.seconds_remaining
+    }
+
+    members = Map.put(socket.assigns.members, uid, member_update)
+    socket = assign(socket, members: members)
+
+    # If this is our own timer, also update top-level assigns + Presence
+    socket =
+      if uid == socket.assigns.user_id do
+        update_presence(socket, payload)
+
+        assign(socket,
+          seconds_remaining: payload.seconds_remaining,
+          status: payload.status
+        )
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   # Presence diff
@@ -267,22 +240,20 @@ defmodule TomatoWeb.RoomLive do
 
   # Helpers
 
-  defp broadcast_timer_state(socket) do
+  defp get_member_display_name(socket, uid) do
+    case Map.get(socket.assigns.members, uid) do
+      %{display_name: name} -> name
+      nil -> "Tomato-#{String.slice(uid, 0, 4)}"
+    end
+  end
+
+  defp update_presence(socket, payload) do
     topic = "room:#{socket.assigns.room_code}"
-
-    payload = %{
-      user_id: socket.assigns.user_id,
-      display_name: socket.assigns.display_name,
-      status: socket.assigns.status,
-      seconds_remaining: socket.assigns.seconds_remaining
-    }
-
-    Phoenix.PubSub.broadcast(Tomato.PubSub, topic, {:timer_update, payload})
 
     TomatoWeb.Presence.update(self(), topic, socket.assigns.user_id, %{
       display_name: socket.assigns.display_name,
-      status: socket.assigns.status,
-      seconds_remaining: socket.assigns.seconds_remaining
+      status: payload.status,
+      seconds_remaining: payload.seconds_remaining
     })
   end
 
@@ -299,5 +270,4 @@ defmodule TomatoWeb.RoomLive do
         acc
     end)
   end
-
 end

@@ -15,6 +15,8 @@ defmodule Tomato.Application do
       {DNSCluster, query: Application.get_env(:tomato, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Tomato.PubSub},
       TomatoWeb.Presence,
+      {Registry, keys: :unique, name: Tomato.TimerRegistry},
+      {DynamicSupervisor, name: Tomato.TimerSupervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry
       TomatoWeb.Endpoint
     ]
