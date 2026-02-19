@@ -183,6 +183,12 @@ defmodule TomatoWeb.RoomLive do
             {Phoenix.HTML.raw(@qr_svg)}
           </div>
         </div>
+
+        <div class="mt-8">
+          <button id="leave-room-btn" phx-click="leave_room" class="btn btn-ghost btn-sm">
+            <.icon name="hero-arrow-left" class="size-4 mr-1" /> Leave Room
+          </button>
+        </div>
       </div>
     </Layouts.app>
     """
@@ -200,6 +206,11 @@ defmodule TomatoWeb.RoomLive do
     {:noreply, socket}
   end
 
+  def handle_event("leave_room", _params, socket) do
+    TimerServer.pause_timer(socket.assigns.user_id, socket.assigns.room_code)
+    {:noreply, push_navigate(socket, to: ~p"/")}
+  end
+
   def handle_event("reset", _params, socket) do
     TimerServer.reset_timer(socket.assigns.user_id, socket.assigns.room_code)
     {:noreply, socket}
@@ -207,29 +218,34 @@ defmodule TomatoWeb.RoomLive do
 
   # Timer update from GenServer (any user in the room, including self)
   def handle_info({:timer_update, %{user_id: uid} = payload}, socket) do
-    member_update = %{
-      display_name: get_member_display_name(socket, uid),
-      status: payload.status,
-      seconds_remaining: payload.seconds_remaining
-    }
+    # Ignore updates from users no longer in the room (already left via Presence)
+    if uid != socket.assigns.user_id and not Map.has_key?(socket.assigns.members, uid) do
+      {:noreply, socket}
+    else
+      member_update = %{
+        display_name: get_member_display_name(socket, uid),
+        status: payload.status,
+        seconds_remaining: payload.seconds_remaining
+      }
 
-    members = Map.put(socket.assigns.members, uid, member_update)
-    socket = assign(socket, members: members)
+      members = Map.put(socket.assigns.members, uid, member_update)
+      socket = assign(socket, members: members)
 
-    # If this is our own timer, also update top-level assigns + Presence
-    socket =
-      if uid == socket.assigns.user_id do
-        update_presence(socket, payload)
+      # If this is our own timer, also update top-level assigns + Presence
+      socket =
+        if uid == socket.assigns.user_id do
+          update_presence(socket, payload)
 
-        assign(socket,
-          seconds_remaining: payload.seconds_remaining,
-          status: payload.status
-        )
-      else
-        socket
-      end
+          assign(socket,
+            seconds_remaining: payload.seconds_remaining,
+            status: payload.status
+          )
+        else
+          socket
+        end
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   # Presence diff
