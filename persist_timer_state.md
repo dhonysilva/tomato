@@ -109,6 +109,97 @@ Same thin-client conversion, plus:
 | EDIT   | `test/tomato_web/live/room_live_test.exs` — fix tick tests |
 | EDIT   | `test/tomato_web/presence_test.exs` — fix tick tests |
 
+## Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph Browser["Browser (Client)"]
+        Tab1["Browser Tab 1"]
+        Tab2["Browser Tab 2"]
+    end
+
+    subgraph Phoenix["Phoenix Endpoint"]
+        LV1["TimerLive<br/>(LiveView Process)"]
+        LV2["TimerLive<br/>(LiveView Process)"]
+        RL["RoomLive<br/>(LiveView Process)"]
+    end
+
+    subgraph Supervision["Supervision Tree"]
+        direction TB
+        App["Tomato.Application<br/>(one_for_one)"]
+        DS["Tomato.TimerSupervisor<br/>(DynamicSupervisor)"]
+        Reg["Tomato.TimerRegistry<br/>(Registry, unique keys)"]
+        PS["Tomato.PubSub<br/>(Phoenix.PubSub)"]
+        Pres["TomatoWeb.Presence"]
+    end
+
+    subgraph Timers["Timer GenServers (dynamic children)"]
+        TS1["TimerServer<br/>{user_1, :solo}<br/>──────────<br/>seconds_remaining: 1500<br/>status: :running<br/>timer_ref: ref"]
+        TS2["TimerServer<br/>{user_2, &quot;ABC123&quot;}<br/>──────────<br/>seconds_remaining: 900<br/>status: :paused<br/>timer_ref: nil"]
+    end
+
+    %% Browser ↔ LiveView (WebSocket)
+    Tab1 -- "WebSocket" --> LV1
+    Tab2 -- "WebSocket" --> LV2
+
+    %% LiveView → TimerServer (API calls)
+    LV1 -- "ensure_started/2<br/>start_timer/2<br/>pause_timer/2<br/>reset_timer/2" --> TS1
+    RL -- "ensure_started/2<br/>get_state/2" --> TS2
+
+    %% DynamicSupervisor manages TimerServers
+    DS -. "start_child/2<br/>(restart: :temporary)" .-> TS1
+    DS -. "start_child/2<br/>(restart: :temporary)" .-> TS2
+
+    %% Registry maps keys to PIDs
+    Reg -. "{user_id, scope} → PID" .-> TS1
+    Reg -. "{user_id, scope} → PID" .-> TS2
+
+    %% TimerServer ticks itself
+    TS1 -- "Process.send_after<br/>(:tick, 1000ms)" --> TS1
+    TS2 -- "Process.send_after<br/>(:tick, 1000ms)" --> TS2
+
+    %% TimerServer broadcasts via PubSub
+    TS1 -- "broadcast!<br/>{:timer_update, payload}" --> PS
+    TS2 -- "broadcast!<br/>{:timer_update, payload}" --> PS
+
+    %% PubSub delivers to subscribed LiveViews
+    PS -- "topic: timer:user_1" --> LV1
+    PS -- "topic: timer:user_1" --> LV2
+    PS -- "topic: room:ABC123" --> RL
+
+    %% Presence tracks users in rooms
+    Pres -. "tracks users<br/>in room topics" .-> RL
+
+    %% Idle timeout
+    TS1 -. "idle timeout<br/>(5 min) → terminate" .-> TS1
+
+    %% Supervision tree hierarchy
+    App --> DS
+    App --> Reg
+    App --> PS
+    App --> Pres
+
+    %% Styling
+    classDef genserver fill:#4a9eff,stroke:#2176cc,color:#fff
+    classDef liveview fill:#ff6b6b,stroke:#cc4444,color:#fff
+    classDef infra fill:#51cf66,stroke:#2f9e44,color:#fff
+    classDef browser fill:#ffd43b,stroke:#fab005,color:#333
+
+    class TS1,TS2 genserver
+    class LV1,LV2,RL liveview
+    class DS,Reg,PS,Pres,App infra
+    class Tab1,Tab2 browser
+```
+
+### How it works
+
+1. **On mount** — LiveView calls `TimerServer.ensure_started(user_id, scope)` which either finds an existing GenServer via the Registry or starts a new one under the DynamicSupervisor
+2. **User actions** (start/pause/reset) — LiveView calls the TimerServer API; the GenServer updates its state and broadcasts via PubSub
+3. **Tick loop** — The GenServer sends itself a `:tick` message every 1 second using `Process.send_after/3`, decrementing `seconds_remaining`
+4. **PubSub fan-out** — Every tick broadcasts `{:timer_update, payload}` to the topic (`timer:user_id` or `room:code`), so all connected LiveViews update in real-time
+5. **Reconnect** — When the browser reconnects, the new LiveView finds the *same* GenServer still ticking and subscribes to updates — no state lost
+6. **Idle cleanup** — If the timer is stopped/paused for 5 minutes, the GenServer terminates itself (restart: `:temporary` means it won't restart)
+
 ## Edge Cases
 
 - **GenServer crash:** `restart: :temporary` means no auto-restart. Next LiveView command catches the `:exit` and calls `ensure_started` to create a fresh timer.
