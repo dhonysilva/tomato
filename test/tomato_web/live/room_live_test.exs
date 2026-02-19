@@ -104,6 +104,14 @@ defmodule TomatoWeb.RoomLiveTest do
     refute initial_html == updated_html
   end
 
+  test "leave room button navigates back to solo timer", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    assert has_element?(view, "#leave-room-btn")
+    {:ok, _view, html} = view |> element("#leave-room-btn") |> render_click() |> follow_redirect(conn)
+    assert html =~ "Tomato Focus"
+    refute html =~ "ABC234"
+  end
+
   test "rejects invalid room codes", %{conn: conn} do
     assert_raise TomatoWeb.InvalidRoomCodeError, fn ->
       live(conn, ~p"/room/AB")
