@@ -105,6 +105,29 @@ defmodule Tomato.TimerServerTest do
     assert state.pomodoro_count == 4
   end
 
+  test "break phase completion resets to focus, stops timer, and clears timer_ref",
+       %{scope: scope, pid: pid} do
+    :ok = TimerServer.start_timer(@user_id, scope)
+
+    # Force into a short break with 1 second remaining
+    :sys.replace_state(pid, fn state ->
+      %{state | phase: :short_break, seconds_remaining: 1, status: :running}
+    end)
+
+    # Tick to 0 — should transition back to :focus and stop
+    send(pid, :tick)
+    :sys.get_state(pid)
+
+    {:ok, state} = TimerServer.get_state(@user_id, scope)
+    assert state.phase == :focus
+    assert state.seconds_remaining == 25 * 60
+    assert state.status == :stopped
+
+    # timer_ref must be nil — no next tick was scheduled
+    raw = :sys.get_state(pid)
+    assert raw.timer_ref == nil
+  end
+
   test "focus phase completion auto-starts short break", %{scope: scope, pid: pid} do
     :ok = TimerServer.start_timer(@user_id, scope)
 
