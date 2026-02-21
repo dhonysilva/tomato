@@ -85,26 +85,65 @@ defmodule Tomato.TimerServerTest do
     assert TimerServer.topic("user1", "ABC234") == "room:ABC234"
   end
 
-  test "start after completion resets to initial seconds", %{scope: scope, pid: pid} do
+  test "4th focus completion triggers long break with correct duration and keeps running",
+       %{scope: scope, pid: pid} do
     :ok = TimerServer.start_timer(@user_id, scope)
 
-    # Simulate reaching 1 second remaining
+    # Place the server at the end of the 4th focus session (3 already completed)
     :sys.replace_state(pid, fn state ->
-      %{state | seconds_remaining: 1}
+      %{state | phase: :focus, seconds_remaining: 1, pomodoro_count: 3}
     end)
 
-    # Tick to 0 — timer should stop
+    # Tick to 0 — rem(4, 4) == 0 should select :long_break
     send(pid, :tick)
     :sys.get_state(pid)
 
     {:ok, state} = TimerServer.get_state(@user_id, scope)
-    assert state.seconds_remaining == 0
+    assert state.phase == :long_break
+    assert state.seconds_remaining == 15 * 60
+    assert state.status == :running
+    assert state.pomodoro_count == 4
+  end
+
+  test "break phase completion resets to focus, stops timer, and clears timer_ref",
+       %{scope: scope, pid: pid} do
+    :ok = TimerServer.start_timer(@user_id, scope)
+
+    # Force into a short break with 1 second remaining
+    :sys.replace_state(pid, fn state ->
+      %{state | phase: :short_break, seconds_remaining: 1, status: :running}
+    end)
+
+    # Tick to 0 — should transition back to :focus and stop
+    send(pid, :tick)
+    :sys.get_state(pid)
+
+    {:ok, state} = TimerServer.get_state(@user_id, scope)
+    assert state.phase == :focus
+    assert state.seconds_remaining == 25 * 60
     assert state.status == :stopped
 
-    # Starting again should reset to initial
+    # timer_ref must be nil — no next tick was scheduled
+    raw = :sys.get_state(pid)
+    assert raw.timer_ref == nil
+  end
+
+  test "focus phase completion auto-starts short break", %{scope: scope, pid: pid} do
     :ok = TimerServer.start_timer(@user_id, scope)
+
+    # Simulate reaching 1 second remaining in focus phase
+    :sys.replace_state(pid, fn state ->
+      %{state | seconds_remaining: 1}
+    end)
+
+    # Tick to 0 — timer should auto-transition to short break
+    send(pid, :tick)
+    :sys.get_state(pid)
+
     {:ok, state} = TimerServer.get_state(@user_id, scope)
-    assert state.seconds_remaining == @initial_seconds
+    assert state.phase == :short_break
+    assert state.seconds_remaining == 5 * 60
     assert state.status == :running
+    assert state.pomodoro_count == 1
   end
 end
