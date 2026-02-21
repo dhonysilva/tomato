@@ -66,7 +66,7 @@ defmodule TomatoWeb.RoomLive do
        initial_seconds: @initial_seconds,
        status: status,
        members: members,
-       name_set: false
+       name_set: not connected?(socket)
      )}
   end
 
