@@ -79,7 +79,6 @@ defmodule TomatoWeb.RoomLive do
     <Layouts.app flash={@flash}>
       <div class="flex flex-col items-center" id="room-container">
         <div class="text-center mb-6">
-          <h1 class="text-2xl tracking-tight">Tomato Focus</h1>
           <p class="text-sm text-base-content/60 mt-1">
             Room <span class="font-mono font-bold tracking-wider text-primary">{@room_code}</span>
           </p>

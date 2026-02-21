@@ -42,8 +42,6 @@ defmodule TomatoWeb.TimerLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="flex flex-col items-center justify-center min-h-[60vh]" id="timer-container">
-        <h1 class="text-2xl tracking-tight mb-8">Tomato Focus</h1>
-
         <p
           id="phase-label"
           class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1"
