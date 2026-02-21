@@ -5,7 +5,7 @@ defmodule TomatoWeb.RoomLive do
 
   alias Tomato.TimerServer
 
-  @initial_seconds 25 * 60
+  @focus_seconds 25 * 60
 
   def mount(%{"code" => code}, session, socket) do
     code = String.upcase(code)
@@ -18,7 +18,7 @@ defmodule TomatoWeb.RoomLive do
     display_name = "Tomato-#{String.slice(user_id, 0, 4)}"
     topic = "room:#{code}"
 
-    {seconds_remaining, status} =
+    {seconds_remaining, status, phase, pomodoro_count} =
       if connected?(socket) do
         {:ok, _pid} = TimerServer.ensure_started(user_id, code)
         Phoenix.PubSub.subscribe(Tomato.PubSub, topic)
@@ -27,7 +27,8 @@ defmodule TomatoWeb.RoomLive do
         TomatoWeb.Presence.track(self(), topic, user_id, %{
           display_name: display_name,
           status: :stopped,
-          seconds_remaining: @initial_seconds
+          seconds_remaining: @focus_seconds,
+          phase: :focus
         })
 
         # Then recover state from GenServer if it was already running
@@ -36,16 +37,17 @@ defmodule TomatoWeb.RoomLive do
             TomatoWeb.Presence.update(self(), topic, user_id, %{
               display_name: display_name,
               status: state.status,
-              seconds_remaining: state.seconds_remaining
+              seconds_remaining: state.seconds_remaining,
+              phase: state.phase
             })
 
-            {state.seconds_remaining, state.status}
+            {state.seconds_remaining, state.status, state.phase, state.pomodoro_count}
 
           {:error, :not_found} ->
-            {@initial_seconds, :stopped}
+            {@focus_seconds, :stopped, :focus, 0}
         end
       else
-        {@initial_seconds, :stopped}
+        {@focus_seconds, :stopped, :focus, 0}
       end
 
     presences = TomatoWeb.Presence.list(topic)
@@ -63,8 +65,10 @@ defmodule TomatoWeb.RoomLive do
        user_id: user_id,
        display_name: display_name,
        seconds_remaining: seconds_remaining,
-       initial_seconds: @initial_seconds,
+       phase_seconds: phase_seconds(phase),
        status: status,
+       phase: phase,
+       pomodoro_count: pomodoro_count,
        members: members,
        name_set: not connected?(socket)
      )}
@@ -80,6 +84,18 @@ defmodule TomatoWeb.RoomLive do
             Room <span class="font-mono font-bold tracking-wider text-primary">{@room_code}</span>
           </p>
         </div>
+
+        <p id="phase-label" class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1">
+          <%= case @phase do %>
+            <% :focus -> %>Focus
+            <% :short_break -> %>Short Break
+            <% :long_break -> %>Long Break
+          <% end %>
+        </p>
+
+        <p id="pomodoro-count" class="text-xs text-base-content/40 mb-4">
+          Pomodoro {@pomodoro_count + if(@phase == :focus, do: 1, else: 0)}
+        </p>
 
         <div
           id="timer-display"
@@ -111,10 +127,10 @@ defmodule TomatoWeb.RoomLive do
           <button
             id="reset-btn"
             phx-click="reset"
-            disabled={@status == :stopped and @seconds_remaining == @initial_seconds}
+            disabled={@status == :stopped and @seconds_remaining == @phase_seconds}
             class={[
               "btn btn-lg min-w-32 transition-all duration-200",
-              if(@status == :stopped and @seconds_remaining == @initial_seconds,
+              if(@status == :stopped and @seconds_remaining == @phase_seconds,
                 do: "btn-disabled btn-ghost opacity-50",
                 else: "btn-ghost hover:scale-105"
               )
@@ -143,13 +159,16 @@ defmodule TomatoWeb.RoomLive do
                 </p>
                 <p class={[
                   "text-xs mt-1",
-                  member.status == :running && "text-success",
+                  member.status == :running && member.phase == :focus && "text-success",
+                  member.status == :running && member.phase != :focus && "text-info",
                   member.status == :paused && "text-warning",
                   member.status == :stopped && "text-base-content/40"
                 ]}>
                   <%= cond do %>
-                    <% member.status == :running -> %>
+                    <% member.status == :running and member.phase == :focus -> %>
                       Focusing
+                    <% member.status == :running -> %>
+                      On break
                     <% member.status == :paused -> %>
                       Paused
                     <% member.seconds_remaining == 0 -> %>
@@ -254,7 +273,8 @@ defmodule TomatoWeb.RoomLive do
     TomatoWeb.Presence.update(self(), topic, socket.assigns.user_id, %{
       display_name: display_name,
       status: socket.assigns.status,
-      seconds_remaining: socket.assigns.seconds_remaining
+      seconds_remaining: socket.assigns.seconds_remaining,
+      phase: socket.assigns.phase
     })
 
     {:noreply, assign(socket, display_name: display_name, name_set: true)}
@@ -273,7 +293,8 @@ defmodule TomatoWeb.RoomLive do
       member_update = %{
         display_name: get_member_display_name(socket, uid),
         status: payload.status,
-        seconds_remaining: payload.seconds_remaining
+        seconds_remaining: payload.seconds_remaining,
+        phase: payload.phase
       }
 
       members = Map.put(socket.assigns.members, uid, member_update)
@@ -286,7 +307,10 @@ defmodule TomatoWeb.RoomLive do
 
           assign(socket,
             seconds_remaining: payload.seconds_remaining,
-            status: payload.status
+            status: payload.status,
+            phase: payload.phase,
+            pomodoro_count: payload.pomodoro_count,
+            phase_seconds: phase_seconds(payload.phase)
           )
         else
           socket
@@ -317,7 +341,8 @@ defmodule TomatoWeb.RoomLive do
     TomatoWeb.Presence.update(self(), topic, socket.assigns.user_id, %{
       display_name: socket.assigns.display_name,
       status: payload.status,
-      seconds_remaining: payload.seconds_remaining
+      seconds_remaining: payload.seconds_remaining,
+      phase: payload.phase
     })
   end
 
@@ -327,11 +352,16 @@ defmodule TomatoWeb.RoomLive do
         Map.put(acc, user_id, %{
           display_name: meta.display_name,
           status: meta.status,
-          seconds_remaining: meta.seconds_remaining
+          seconds_remaining: meta.seconds_remaining,
+          phase: Map.get(meta, :phase, :focus)
         })
 
       {_user_id, %{metas: []}}, acc ->
         acc
     end)
   end
+
+  defp phase_seconds(:focus),       do: 25 * 60
+  defp phase_seconds(:short_break), do: 5 * 60
+  defp phase_seconds(:long_break),  do: 15 * 60
 end

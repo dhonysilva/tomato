@@ -5,22 +5,22 @@ defmodule TomatoWeb.TimerLive do
 
   alias Tomato.TimerServer
 
-  @initial_seconds 25 * 60
+  @focus_seconds 25 * 60
 
   def mount(_params, session, socket) do
     user_id = session["user_id"]
 
-    {seconds_remaining, status} =
+    {seconds_remaining, status, phase, pomodoro_count} =
       if connected?(socket) do
         {:ok, _pid} = TimerServer.ensure_started(user_id, :solo)
         Phoenix.PubSub.subscribe(Tomato.PubSub, TimerServer.topic(user_id, :solo))
 
         case TimerServer.get_state(user_id, :solo) do
-          {:ok, state} -> {state.seconds_remaining, state.status}
-          {:error, :not_found} -> {@initial_seconds, :stopped}
+          {:ok, state} -> {state.seconds_remaining, state.status, state.phase, state.pomodoro_count}
+          {:error, :not_found} -> {@focus_seconds, :stopped, :focus, 0}
         end
       else
-        {@initial_seconds, :stopped}
+        {@focus_seconds, :stopped, :focus, 0}
       end
 
     {:ok,
@@ -28,8 +28,10 @@ defmodule TomatoWeb.TimerLive do
        page_title: "Timer",
        user_id: user_id,
        seconds_remaining: seconds_remaining,
-       initial_seconds: @initial_seconds,
-       status: status
+       phase_seconds: phase_seconds(phase),
+       status: status,
+       phase: phase,
+       pomodoro_count: pomodoro_count
      )}
   end
 
@@ -38,6 +40,18 @@ defmodule TomatoWeb.TimerLive do
     <Layouts.app flash={@flash}>
       <div class="flex flex-col items-center justify-center min-h-[60vh]" id="timer-container">
         <h1 class="text-2xl tracking-tight mb-8">Tomato Focus</h1>
+
+        <p id="phase-label" class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1">
+          <%= case @phase do %>
+            <% :focus -> %>Focus
+            <% :short_break -> %>Short Break
+            <% :long_break -> %>Long Break
+          <% end %>
+        </p>
+
+        <p id="pomodoro-count" class="text-xs text-base-content/40 mb-6">
+          Pomodoro {@pomodoro_count + if(@phase == :focus, do: 1, else: 0)}
+        </p>
 
         <div
           id="timer-display"
@@ -69,10 +83,10 @@ defmodule TomatoWeb.TimerLive do
           <button
             id="reset-btn"
             phx-click="reset"
-            disabled={@status == :stopped and @seconds_remaining == @initial_seconds}
+            disabled={@status == :stopped and @seconds_remaining == @phase_seconds}
             class={[
               "btn btn-lg min-w-32 transition-all duration-200",
-              if(@status == :stopped and @seconds_remaining == @initial_seconds,
+              if(@status == :stopped and @seconds_remaining == @phase_seconds,
                 do: "btn-disabled btn-ghost opacity-50",
                 else: "btn-ghost hover:scale-105"
               )
@@ -84,8 +98,10 @@ defmodule TomatoWeb.TimerLive do
 
         <p id="timer-status" class="mt-8 text-sm text-base-content/50">
           <%= cond do %>
-            <% @status == :running -> %>
+            <% @status == :running and @phase == :focus -> %>
               Focus time — stay on task
+            <% @status == :running -> %>
+              Break time — step away
             <% @status == :paused -> %>
               Timer paused
             <% @seconds_remaining == 0 -> %>
@@ -133,7 +149,14 @@ defmodule TomatoWeb.TimerLive do
     {:noreply,
      assign(socket,
        seconds_remaining: payload.seconds_remaining,
-       status: payload.status
+       status: payload.status,
+       phase: payload.phase,
+       pomodoro_count: payload.pomodoro_count,
+       phase_seconds: phase_seconds(payload.phase)
      )}
   end
+
+  defp phase_seconds(:focus),       do: 25 * 60
+  defp phase_seconds(:short_break), do: 5 * 60
+  defp phase_seconds(:long_break),  do: 15 * 60
 end

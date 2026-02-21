@@ -85,26 +85,22 @@ defmodule Tomato.TimerServerTest do
     assert TimerServer.topic("user1", "ABC234") == "room:ABC234"
   end
 
-  test "start after completion resets to initial seconds", %{scope: scope, pid: pid} do
+  test "focus phase completion auto-starts short break", %{scope: scope, pid: pid} do
     :ok = TimerServer.start_timer(@user_id, scope)
 
-    # Simulate reaching 1 second remaining
+    # Simulate reaching 1 second remaining in focus phase
     :sys.replace_state(pid, fn state ->
       %{state | seconds_remaining: 1}
     end)
 
-    # Tick to 0 — timer should stop
+    # Tick to 0 — timer should auto-transition to short break
     send(pid, :tick)
     :sys.get_state(pid)
 
     {:ok, state} = TimerServer.get_state(@user_id, scope)
-    assert state.seconds_remaining == 0
-    assert state.status == :stopped
-
-    # Starting again should reset to initial
-    :ok = TimerServer.start_timer(@user_id, scope)
-    {:ok, state} = TimerServer.get_state(@user_id, scope)
-    assert state.seconds_remaining == @initial_seconds
+    assert state.phase == :short_break
+    assert state.seconds_remaining == 5 * 60
     assert state.status == :running
+    assert state.pomodoro_count == 1
   end
 end
