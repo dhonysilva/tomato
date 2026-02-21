@@ -1,9 +1,9 @@
 defmodule Tomato.TimerServer do
   use GenServer
 
-  @focus_seconds       25 * 60
-  @short_break_seconds  5 * 60
-  @long_break_seconds  15 * 60
+  @focus_seconds 25 * 60
+  @short_break_seconds 5 * 60
+  @long_break_seconds 15 * 60
   @idle_timeout :timer.minutes(5)
 
   # Public API
@@ -116,7 +116,13 @@ defmodule Tomato.TimerServer do
   def handle_call(:reset, _from, state) do
     if state.timer_ref, do: Process.cancel_timer(state.timer_ref)
 
-    new_state = %{state | seconds_remaining: phase_seconds(state.phase), status: :stopped, timer_ref: nil}
+    new_state = %{
+      state
+      | seconds_remaining: phase_seconds(state.phase),
+        status: :stopped,
+        timer_ref: nil
+    }
+
     broadcast(new_state)
     {:reply, :ok, new_state, @idle_timeout}
   end
@@ -140,12 +146,13 @@ defmodule Tomato.TimerServer do
 
             ref = Process.send_after(self(), :tick, 1000)
 
-            new_state = %{state |
-              seconds_remaining: next_seconds,
-              status: :running,
-              phase: next_phase,
-              pomodoro_count: new_count,
-              timer_ref: ref
+            new_state = %{
+              state
+              | seconds_remaining: next_seconds,
+                status: :running,
+                phase: next_phase,
+                pomodoro_count: new_count,
+                timer_ref: ref
             }
 
             broadcast(new_state)
@@ -153,11 +160,12 @@ defmodule Tomato.TimerServer do
 
           _ ->
             # :short_break or :long_break — stop and return to focus
-            new_state = %{state |
-              seconds_remaining: @focus_seconds,
-              status: :stopped,
-              phase: :focus,
-              timer_ref: nil
+            new_state = %{
+              state
+              | seconds_remaining: @focus_seconds,
+                status: :stopped,
+                phase: :focus,
+                timer_ref: nil
             }
 
             broadcast(new_state)
@@ -193,9 +201,9 @@ defmodule Tomato.TimerServer do
     Phoenix.PubSub.broadcast(Tomato.PubSub, topic, {:timer_update, payload})
   end
 
-  defp phase_seconds(:focus),       do: @focus_seconds
-  defp phase_seconds(:short_break), do: @short_break_seconds
-  defp phase_seconds(:long_break),  do: @long_break_seconds
+  def phase_seconds(:focus), do: @focus_seconds
+  def phase_seconds(:short_break), do: @short_break_seconds
+  def phase_seconds(:long_break), do: @long_break_seconds
 
   defp idle_timeout(%{status: :running}), do: :infinity
   defp idle_timeout(_state), do: @idle_timeout

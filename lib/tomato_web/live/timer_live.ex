@@ -16,8 +16,11 @@ defmodule TomatoWeb.TimerLive do
         Phoenix.PubSub.subscribe(Tomato.PubSub, TimerServer.topic(user_id, :solo))
 
         case TimerServer.get_state(user_id, :solo) do
-          {:ok, state} -> {state.seconds_remaining, state.status, state.phase, state.pomodoro_count}
-          {:error, :not_found} -> {@focus_seconds, :stopped, :focus, 0}
+          {:ok, state} ->
+            {state.seconds_remaining, state.status, state.phase, state.pomodoro_count}
+
+          {:error, :not_found} ->
+            {@focus_seconds, :stopped, :focus, 0}
         end
       else
         {@focus_seconds, :stopped, :focus, 0}
@@ -28,7 +31,7 @@ defmodule TomatoWeb.TimerLive do
        page_title: "Timer",
        user_id: user_id,
        seconds_remaining: seconds_remaining,
-       phase_seconds: phase_seconds(phase),
+       phase_seconds: TimerServer.phase_seconds(phase),
        status: status,
        phase: phase,
        pomodoro_count: pomodoro_count
@@ -41,11 +44,17 @@ defmodule TomatoWeb.TimerLive do
       <div class="flex flex-col items-center justify-center min-h-[60vh]" id="timer-container">
         <h1 class="text-2xl tracking-tight mb-8">Tomato Focus</h1>
 
-        <p id="phase-label" class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1">
+        <p
+          id="phase-label"
+          class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1"
+        >
           <%= case @phase do %>
-            <% :focus -> %>Focus
-            <% :short_break -> %>Short Break
-            <% :long_break -> %>Long Break
+            <% :focus -> %>
+              Focus
+            <% :short_break -> %>
+              Short Break
+            <% :long_break -> %>
+              Long Break
           <% end %>
         </p>
 
@@ -152,11 +161,7 @@ defmodule TomatoWeb.TimerLive do
        status: payload.status,
        phase: payload.phase,
        pomodoro_count: payload.pomodoro_count,
-       phase_seconds: phase_seconds(payload.phase)
+       phase_seconds: TimerServer.phase_seconds(payload.phase)
      )}
   end
-
-  defp phase_seconds(:focus),       do: 25 * 60
-  defp phase_seconds(:short_break), do: 5 * 60
-  defp phase_seconds(:long_break),  do: 15 * 60
 end

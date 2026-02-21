@@ -65,7 +65,7 @@ defmodule TomatoWeb.RoomLive do
        user_id: user_id,
        display_name: display_name,
        seconds_remaining: seconds_remaining,
-       phase_seconds: phase_seconds(phase),
+       phase_seconds: TimerServer.phase_seconds(phase),
        status: status,
        phase: phase,
        pomodoro_count: pomodoro_count,
@@ -85,11 +85,17 @@ defmodule TomatoWeb.RoomLive do
           </p>
         </div>
 
-        <p id="phase-label" class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1">
+        <p
+          id="phase-label"
+          class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1"
+        >
           <%= case @phase do %>
-            <% :focus -> %>Focus
-            <% :short_break -> %>Short Break
-            <% :long_break -> %>Long Break
+            <% :focus -> %>
+              Focus
+            <% :short_break -> %>
+              Short Break
+            <% :long_break -> %>
+              Long Break
           <% end %>
         </p>
 
@@ -310,7 +316,7 @@ defmodule TomatoWeb.RoomLive do
             status: payload.status,
             phase: payload.phase,
             pomodoro_count: payload.pomodoro_count,
-            phase_seconds: phase_seconds(payload.phase)
+            phase_seconds: TimerServer.phase_seconds(payload.phase)
           )
         else
           socket
@@ -360,8 +366,4 @@ defmodule TomatoWeb.RoomLive do
         acc
     end)
   end
-
-  defp phase_seconds(:focus),       do: 25 * 60
-  defp phase_seconds(:short_break), do: 5 * 60
-  defp phase_seconds(:long_break),  do: 15 * 60
 end
