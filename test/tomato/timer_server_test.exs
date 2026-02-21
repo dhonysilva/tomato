@@ -85,6 +85,26 @@ defmodule Tomato.TimerServerTest do
     assert TimerServer.topic("user1", "ABC234") == "room:ABC234"
   end
 
+  test "4th focus completion triggers long break with correct duration and keeps running",
+       %{scope: scope, pid: pid} do
+    :ok = TimerServer.start_timer(@user_id, scope)
+
+    # Place the server at the end of the 4th focus session (3 already completed)
+    :sys.replace_state(pid, fn state ->
+      %{state | phase: :focus, seconds_remaining: 1, pomodoro_count: 3}
+    end)
+
+    # Tick to 0 — rem(4, 4) == 0 should select :long_break
+    send(pid, :tick)
+    :sys.get_state(pid)
+
+    {:ok, state} = TimerServer.get_state(@user_id, scope)
+    assert state.phase == :long_break
+    assert state.seconds_remaining == 15 * 60
+    assert state.status == :running
+    assert state.pomodoro_count == 4
+  end
+
   test "focus phase completion auto-starts short break", %{scope: scope, pid: pid} do
     :ok = TimerServer.start_timer(@user_id, scope)
 
