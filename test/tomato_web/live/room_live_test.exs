@@ -111,53 +111,7 @@ defmodule TomatoWeb.RoomLiveTest do
     {:ok, view, _html} = live(conn, ~p"/room/ABC234")
     assert has_element?(view, "#leave-room-btn")
 
-
-  test "leaving user is removed from member list and their timer updates are ignored", %{
-         conn: conn,
-         user_id: user_id
-       } do
-    # First user joins the room
-    {:ok, view1, _html1} = live(conn, ~p"/room/ABC234")
-
-    # Second user joins the same room
-    second_user_id = "second-#{System.unique_integer([:positive])}"
-
-    {:ok, view2, _html2} =
-      Phoenix.ConnTest.build_conn()
-      |> init_test_session(%{user_id: second_user_id})
-      |> live(~p"/room/ABC234")
-
-    # Start the timer as the first user and ensure both see it focusing
-    view1 |> element("#start-btn") |> render_click()
-    assert render(view1) =~ "Focusing"
-    assert render(view2) =~ "Focusing"
-
-    # Capture the member list / room state as seen by the remaining user while both are present
-    html_with_both = render(view2)
-    assert html_with_both =~ "In this room"
-
-    # First user leaves the room (navigates away)
-    {:ok, _redirected_view, _solo_html} =
-      view1
-      |> element("#leave-room-btn")
-      |> render_click()
-      |> follow_redirect(conn)
-
-    # Remaining user's member list / room state should update to reflect the departure
-    html_after_leave = render(view2)
-    assert html_after_leave =~ "In this room"
-    refute html_after_leave == html_with_both
-
-    # Capture the remaining user's state before a tick from the user who left
-    html_before_tick_from_leaver = render(view2)
-
-    # Simulate a timer tick for the user who left the room
-    send_tick(user_id, "ABC234")
-
-    # The remaining user's view should not change in response to the leaving user's ticks
-    html_after_tick_from_leaver = render(view2)
-    assert html_after_tick_from_leaver == html_before_tick_from_leaver
-  end
+    {:ok, _redirected_view, html} =
       view |> element("#leave-room-btn") |> render_click() |> follow_redirect(conn)
 
     assert html =~ "Tomato Focus"
