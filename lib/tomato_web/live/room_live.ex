@@ -65,7 +65,8 @@ defmodule TomatoWeb.RoomLive do
        seconds_remaining: seconds_remaining,
        initial_seconds: @initial_seconds,
        status: status,
-       members: members
+       members: members,
+       name_set: false
      )}
   end
 
@@ -190,6 +191,34 @@ defmodule TomatoWeb.RoomLive do
           </button>
         </div>
       </div>
+      <%= if not @name_set do %>
+        <div class="modal modal-open">
+          <div class="modal-box">
+            <h3 class="font-bold text-lg">What's your name?</h3>
+            <p class="py-2 text-sm text-base-content/60">
+              It will appear on your countdown card in the room.
+            </p>
+            <form phx-submit="set_name">
+              <input
+                type="text"
+                name="name"
+                placeholder="Your name"
+                class="input input-bordered w-full mt-2"
+                maxlength="20"
+                autofocus
+              />
+              <div class="modal-action">
+                <button type="button" phx-click="skip_name" class="btn btn-ghost">
+                  Skip
+                </button>
+                <button type="submit" class="btn btn-primary">
+                  Join Room
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      <% end %>
     </Layouts.app>
     """
   end
@@ -214,6 +243,25 @@ defmodule TomatoWeb.RoomLive do
   def handle_event("reset", _params, socket) do
     TimerServer.reset_timer(socket.assigns.user_id, socket.assigns.room_code)
     {:noreply, socket}
+  end
+
+  def handle_event("set_name", %{"name" => name}, socket) do
+    name = String.trim(name)
+    display_name = if name != "", do: name, else: socket.assigns.display_name
+
+    topic = "room:#{socket.assigns.room_code}"
+
+    TomatoWeb.Presence.update(self(), topic, socket.assigns.user_id, %{
+      display_name: display_name,
+      status: socket.assigns.status,
+      seconds_remaining: socket.assigns.seconds_remaining
+    })
+
+    {:noreply, assign(socket, display_name: display_name, name_set: true)}
+  end
+
+  def handle_event("skip_name", _, socket) do
+    {:noreply, assign(socket, name_set: true)}
   end
 
   # Timer update from GenServer (any user in the room, including self)
