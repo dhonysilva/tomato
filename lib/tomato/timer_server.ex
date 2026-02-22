@@ -43,6 +43,10 @@ defmodule Tomato.TimerServer do
     GenServer.call(via(user_id, scope), :reset)
   end
 
+  def set_phase(user_id, scope, phase) do
+    GenServer.call(via(user_id, scope), {:set_phase, phase})
+  end
+
   # Child Spec
 
   def child_spec({user_id, scope}) do
@@ -110,6 +114,25 @@ defmodule Tomato.TimerServer do
     new_state = %{state | status: :paused, timer_ref: nil}
     broadcast(new_state)
     {:reply, :ok, new_state, @idle_timeout}
+  end
+
+  @impl true
+  def handle_call({:set_phase, phase}, _from, state) when phase in [:focus, :short_break, :long_break] do
+    if state.timer_ref, do: Process.cancel_timer(state.timer_ref)
+
+    new_state = %{state |
+      phase: phase,
+      seconds_remaining: phase_seconds(phase),
+      status: :stopped,
+      timer_ref: nil
+    }
+
+    broadcast(new_state)
+    {:reply, :ok, new_state, @idle_timeout}
+  end
+
+  def handle_call({:set_phase, _invalid}, _from, state) do
+    {:reply, {:error, :invalid_phase}, state, idle_timeout(state)}
   end
 
   @impl true

@@ -42,19 +42,35 @@ defmodule TomatoWeb.TimerLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="flex flex-col items-center justify-center min-h-[60vh]" id="timer-container">
-        <p
-          id="phase-label"
-          class="text-sm font-semibold uppercase tracking-widest text-base-content/50 mb-1"
-        >
-          <%= case @phase do %>
-            <% :focus -> %>
-              Focus
-            <% :short_break -> %>
-              Short Break
-            <% :long_break -> %>
-              Long Break
-          <% end %>
-        </p>
+        <div class="tabs tabs-boxed mb-4" id="phase-selector" role="tablist" aria-label="Timer phase">
+          <button
+            role="tab"
+            aria-selected={if @phase == :focus, do: "true", else: "false"}
+            class={["tab", @phase == :focus && "tab-active"]}
+            phx-click="set_phase"
+            phx-value-phase="focus"
+          >
+            Focus
+          </button>
+          <button
+            role="tab"
+            aria-selected={if @phase == :short_break, do: "true", else: "false"}
+            class={["tab", @phase == :short_break && "tab-active"]}
+            phx-click="set_phase"
+            phx-value-phase="short_break"
+          >
+            Short Break
+          </button>
+          <button
+            role="tab"
+            aria-selected={if @phase == :long_break, do: "true", else: "false"}
+            class={["tab", @phase == :long_break && "tab-active"]}
+            phx-click="set_phase"
+            phx-value-phase="long_break"
+          >
+            Long Break
+          </button>
+        </div>
 
         <p id="pomodoro-count" class="text-xs text-base-content/40 mb-6">
           Pomodoro {@pomodoro_count + if(@phase == :focus, do: 1, else: 0)}
@@ -151,6 +167,23 @@ defmodule TomatoWeb.TimerLive do
     TimerServer.reset_timer(socket.assigns.user_id, :solo)
     {:noreply, socket}
   end
+
+  def handle_event("set_phase", %{"phase" => phase_str}, socket) do
+    case parse_phase(phase_str) do
+      {:ok, phase} ->
+        TimerServer.set_phase(socket.assigns.user_id, :solo, phase)
+        {:noreply, socket}
+
+      :error ->
+        # Ignore invalid phase values to avoid crashing the LiveView
+        {:noreply, socket}
+    end
+  end
+
+  defp parse_phase("focus"), do: {:ok, :focus}
+  defp parse_phase("short_break"), do: {:ok, :short_break}
+  defp parse_phase("long_break"), do: {:ok, :long_break}
+  defp parse_phase(_), do: :error
 
   def handle_info({:timer_update, payload}, socket) do
     {:noreply,
