@@ -117,7 +117,7 @@ defmodule Tomato.TimerServer do
   end
 
   @impl true
-  def handle_call({:set_phase, phase}, _from, state) do
+  def handle_call({:set_phase, phase}, _from, state) when phase in [:focus, :short_break, :long_break] do
     if state.timer_ref, do: Process.cancel_timer(state.timer_ref)
 
     new_state = %{state |
@@ -129,6 +129,10 @@ defmodule Tomato.TimerServer do
 
     broadcast(new_state)
     {:reply, :ok, new_state, @idle_timeout}
+  end
+
+  def handle_call({:set_phase, _invalid}, _from, state) do
+    {:reply, {:error, :invalid_phase}, state, idle_timeout(state)}
   end
 
   @impl true

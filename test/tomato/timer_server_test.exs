@@ -80,6 +80,22 @@ defmodule Tomato.TimerServerTest do
     assert {:error, :not_found} = TimerServer.get_state("nonexistent", "NOROOM")
   end
 
+  test "set_phase rejects invalid phase and leaves state unchanged", %{scope: scope, pid: pid} do
+    :ok = TimerServer.start_timer(@user_id, scope)
+    {:ok, state_before} = TimerServer.get_state(@user_id, scope)
+
+    assert {:error, :invalid_phase} = TimerServer.set_phase(@user_id, scope, :invalid)
+
+    {:ok, state_after} = TimerServer.get_state(@user_id, scope)
+    assert state_after.phase == state_before.phase
+    assert state_after.seconds_remaining == state_before.seconds_remaining
+    assert state_after.status == state_before.status
+
+    # GenServer must still be alive and functional
+    raw = :sys.get_state(pid)
+    assert is_map(raw)
+  end
+
   test "topic returns correct topic for solo and room scopes" do
     assert TimerServer.topic("user1", :solo) == "timer:user1"
     assert TimerServer.topic("user1", "ABC234") == "room:ABC234"
