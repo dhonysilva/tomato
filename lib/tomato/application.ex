@@ -17,6 +17,7 @@ defmodule Tomato.Application do
       TomatoWeb.Presence,
       {Registry, keys: :unique, name: Tomato.TimerRegistry},
       {DynamicSupervisor, name: Tomato.TimerSupervisor, strategy: :one_for_one},
+      Tomato.UserStore,
       # Start to serve requests, typically the last entry
       TomatoWeb.Endpoint
     ]
