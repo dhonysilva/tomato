@@ -93,6 +93,7 @@ defmodule TomatoWeb.RoomLive do
           <div class="w-24" />
         </div>
 
+        <div class="bg-base-200 rounded-2xl px-8 py-8 w-full max-w-lg flex flex-col items-center mb-6">
         <div class="tabs tabs-boxed mb-6" id="phase-selector" role="tablist" aria-label="Timer phase">
           <button
             role="tab"
@@ -134,7 +135,7 @@ defmodule TomatoWeb.RoomLive do
           {format_display(@seconds_remaining)}
         </div>
 
-        <div class="flex items-center gap-4 mb-12" id="timer-controls">
+        <div class="flex items-center gap-4" id="timer-controls">
           <%= if @status == :running do %>
             <button
               id="pause-btn"
@@ -169,6 +170,7 @@ defmodule TomatoWeb.RoomLive do
             <.icon name="hero-arrow-path" class="size-5 mr-1" /> Reset
           </button>
         </div>
+        </div>
 
         <div class="divider w-full max-w-lg" />
         <div class="w-full max-w-lg mb-12" id="room-members">
@@ -179,7 +181,7 @@ defmodule TomatoWeb.RoomLive do
             <%= for {uid, member} <- @members do %>
               <div
                 class={[
-                  "card bg-base-200 p-3 text-center rounded-lg",
+                  "card bg-base-300 p-3 text-center rounded-lg",
                   uid == @user_id && "ring-2 ring-primary"
                 ]}
                 id={"member-#{uid}"}
@@ -220,7 +222,7 @@ defmodule TomatoWeb.RoomLive do
         </div>
 
         <div class="divider w-full max-w-lg" />
-        <div class="flex flex-col items-center gap-4 pb-12" id="share-section">
+        <div class="bg-base-200 rounded-2xl px-8 py-8 w-full max-w-lg flex flex-col items-center gap-4 mb-6" id="share-section">
           <div class="flex items-center gap-2">
             <input
               id="room-url-input"
