@@ -87,7 +87,7 @@ defmodule TomatoWeb.RoomLive do
         <div class="tabs tabs-boxed mb-4" id="phase-selector" role="tablist" aria-label="Timer phase">
           <button
             role="tab"
-            aria-selected={@phase == :focus}
+            aria-selected={if @phase == :focus, do: "true", else: "false"}
             class={["tab", @phase == :focus && "tab-active"]}
             phx-click="set_phase"
             phx-value-phase="focus"
@@ -96,7 +96,7 @@ defmodule TomatoWeb.RoomLive do
           </button>
           <button
             role="tab"
-            aria-selected={@phase == :short_break}
+            aria-selected={if @phase == :short_break, do: "true", else: "false"}
             class={["tab", @phase == :short_break && "tab-active"]}
             phx-click="set_phase"
             phx-value-phase="short_break"
@@ -105,7 +105,7 @@ defmodule TomatoWeb.RoomLive do
           </button>
           <button
             role="tab"
-            aria-selected={@phase == :long_break}
+            aria-selected={if @phase == :long_break, do: "true", else: "false"}
             class={["tab", @phase == :long_break && "tab-active"]}
             phx-click="set_phase"
             phx-value-phase="long_break"

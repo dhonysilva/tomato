@@ -53,6 +53,40 @@ defmodule TomatoWeb.TimerLiveTest do
     assert html =~ "Ready to focus?"
   end
 
+  test "clicking Short Break tab resets timer to 5:00 and stops it", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+    view |> element("#phase-selector button", "Short Break") |> render_click()
+    html = render(view)
+    assert html =~ "05:00"
+    assert has_element?(view, "#start-btn")
+    assert html =~ ~s(aria-selected="true")
+  end
+
+  test "clicking Long Break tab resets timer to 15:00 and stops it", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+    view |> element("#phase-selector button", "Long Break") |> render_click()
+    html = render(view)
+    assert html =~ "15:00"
+    assert has_element?(view, "#start-btn")
+  end
+
+  test "clicking Focus tab after a break resets timer to 25:00", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+    view |> element("#phase-selector button", "Short Break") |> render_click()
+    view |> element("#phase-selector button", "Focus") |> render_click()
+    assert render(view) =~ "25:00"
+  end
+
+  test "switching phase while timer is running stops the timer", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+    view |> element("#start-btn") |> render_click()
+    assert has_element?(view, "#pause-btn")
+    view |> element("#phase-selector button", "Short Break") |> render_click()
+    html = render(view)
+    assert has_element?(view, "#start-btn")
+    assert html =~ "05:00"
+  end
+
   test "create room button navigates to room", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
     assert has_element?(view, "#create-room-btn")

@@ -159,6 +159,40 @@ defmodule TomatoWeb.RoomLiveTest do
     assert html_after_tick_from_leaver == html_before_tick_from_leaver
   end
 
+  test "clicking Short Break tab resets timer to 5:00 and stops it", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("#phase-selector button", "Short Break") |> render_click()
+    html = render(view)
+    assert html =~ "05:00"
+    assert has_element?(view, "#start-btn")
+    assert html =~ ~s(aria-selected="true")
+  end
+
+  test "clicking Long Break tab resets timer to 15:00 and stops it", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("#phase-selector button", "Long Break") |> render_click()
+    html = render(view)
+    assert html =~ "15:00"
+    assert has_element?(view, "#start-btn")
+  end
+
+  test "clicking Focus tab after a break resets timer to 25:00", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("#phase-selector button", "Short Break") |> render_click()
+    view |> element("#phase-selector button", "Focus") |> render_click()
+    assert render(view) =~ "25:00"
+  end
+
+  test "switching phase while timer is running stops the timer", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("#start-btn") |> render_click()
+    assert has_element?(view, "#pause-btn")
+    view |> element("#phase-selector button", "Short Break") |> render_click()
+    html = render(view)
+    assert has_element?(view, "#start-btn")
+    assert html =~ "05:00"
+  end
+
   test "rejects invalid room codes", %{conn: conn} do
     assert_raise TomatoWeb.InvalidRoomCodeError, fn ->
       live(conn, ~p"/room/AB")
