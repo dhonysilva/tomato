@@ -70,7 +70,8 @@ defmodule TomatoWeb.RoomLive do
        phase: phase,
        pomodoro_count: pomodoro_count,
        members: members,
-       name_set: not connected?(socket)
+       name_set: not connected?(socket),
+       has_custom_name: false
      )}
   end
 
@@ -174,7 +175,13 @@ defmodule TomatoWeb.RoomLive do
                 ]}
                 id={"member-#{uid}"}
               >
-                <p class="text-xs font-medium truncate">{member.display_name}</p>
+                <p class="text-xs font-medium truncate">
+                  <%= if uid == @user_id do %>
+                    <%= if @has_custom_name, do: "#{@display_name} (You)", else: "You" %>
+                  <% else %>
+                    {member.display_name}
+                  <% end %>
+                </p>
                 <p class="text-2xl font-bold tabular-nums mt-1">
                   {format_display(member.seconds_remaining)}
                 </p>
@@ -312,7 +319,7 @@ defmodule TomatoWeb.RoomLive do
       phase: socket.assigns.phase
     })
 
-    {:noreply, assign(socket, display_name: display_name, name_set: true)}
+    {:noreply, assign(socket, display_name: display_name, name_set: true, has_custom_name: name != "")}
   end
 
   def handle_event("skip_name", _, socket) do
