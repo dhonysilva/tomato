@@ -296,7 +296,7 @@ defmodule TomatoWeb.RoomLive do
       end
 
     TimerServer.set_phase(socket.assigns.user_id, socket.assigns.room_code, phase)
-    {:noreply, socket}
+    {:noreply, assign(socket, phase: phase)}
   end
 
   def handle_event("set_name", %{"name" => name}, socket) do
