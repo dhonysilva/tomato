@@ -177,7 +177,7 @@ defmodule TomatoWeb.RoomLive do
               >
                 <p class="text-xs font-medium truncate">
                   <%= if uid == @user_id do %>
-                    <%= if @has_custom_name, do: "#{member.display_name} (You)", else: "You" %>
+                    <%= if @has_custom_name, do: "#{@display_name} (You)", else: "You" %>
                   <% else %>
                     {member.display_name}
                   <% end %>

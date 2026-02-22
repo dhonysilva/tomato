@@ -107,6 +107,21 @@ defmodule TomatoWeb.RoomLiveTest do
     refute initial_html == updated_html
   end
 
+  test "skipping name modal shows 'You' on current user's card", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("button[phx-click='skip_name']") |> render_click()
+    html = render(view)
+    assert html =~ "You"
+    refute html =~ "(You)"
+  end
+
+  test "entering a custom name shows 'Name (You)' on current user's card", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("form[phx-submit='set_name']") |> render_submit(%{"name" => "Alice"})
+    html = render(view)
+    assert html =~ "Alice (You)"
+  end
+
   test "leave room button navigates back to solo timer", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/room/ABC234")
     assert has_element?(view, "#leave-room-btn")
