@@ -83,13 +83,17 @@ defmodule TomatoWeb.RoomLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="flex flex-col items-center" id="room-container">
-        <div class="text-center mb-6">
-          <p class="text-sm text-base-content/60 mt-1">
+        <div class="flex items-center justify-between w-full max-w-lg mb-10">
+          <button id="leave-room-btn" phx-click="leave_room" class="btn btn-ghost btn-sm">
+            <.icon name="hero-arrow-left" class="size-4 mr-1" /> Leave Room
+          </button>
+          <p class="text-sm text-base-content/60">
             Room <span class="font-mono font-bold tracking-wider text-primary">{@room_code}</span>
           </p>
+          <div class="w-24" />
         </div>
 
-        <div class="tabs tabs-boxed mb-4" id="phase-selector" role="tablist" aria-label="Timer phase">
+        <div class="tabs tabs-boxed mb-6" id="phase-selector" role="tablist" aria-label="Timer phase">
           <button
             role="tab"
             aria-selected={if @phase == :focus, do: "true", else: "false"}
@@ -125,12 +129,12 @@ defmodule TomatoWeb.RoomLive do
 
         <div
           id="timer-display"
-          class="text-8xl sm:text-9xl font-bold tracking-widest tabular-nums select-none mb-8"
+          class="text-8xl sm:text-9xl font-bold tracking-widest tabular-nums select-none mb-10"
         >
           {format_display(@seconds_remaining)}
         </div>
 
-        <div class="flex items-center gap-4 mb-8" id="timer-controls">
+        <div class="flex items-center gap-4 mb-12" id="timer-controls">
           <%= if @status == :running do %>
             <button
               id="pause-btn"
@@ -166,7 +170,8 @@ defmodule TomatoWeb.RoomLive do
           </button>
         </div>
 
-        <div class="w-full max-w-lg" id="room-members">
+        <div class="divider w-full max-w-lg" />
+        <div class="w-full max-w-lg mb-12" id="room-members">
           <h2 class="text-sm font-semibold text-base-content/70 mb-3">
             <.icon name="hero-user-group" class="size-4 mr-1" /> In this room ({map_size(@members)})
           </h2>
@@ -214,7 +219,8 @@ defmodule TomatoWeb.RoomLive do
           </div>
         </div>
 
-        <div class="mt-8 flex flex-col items-center gap-4" id="share-section">
+        <div class="divider w-full max-w-lg" />
+        <div class="flex flex-col items-center gap-4 pb-12" id="share-section">
           <div class="flex items-center gap-2">
             <input
               id="room-url-input"
@@ -236,11 +242,6 @@ defmodule TomatoWeb.RoomLive do
           </div>
         </div>
 
-        <div class="mt-8">
-          <button id="leave-room-btn" phx-click="leave_room" class="btn btn-ghost btn-sm">
-            <.icon name="hero-arrow-left" class="size-4 mr-1" /> Leave Room
-          </button>
-        </div>
       </div>
       <%= if not @name_set do %>
         <div class="modal modal-open">
