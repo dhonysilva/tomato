@@ -122,6 +122,27 @@ defmodule TomatoWeb.RoomLiveTest do
     assert html =~ "Alice (You)"
   end
 
+  test "modal stays closed and name is reused when remounting after setting a custom name", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("form[phx-submit='set_name']") |> render_submit(%{"name" => "Alice"})
+
+    {:ok, view2, _html} = live(conn, ~p"/room/ABC234")
+    html = render(view2)
+    refute html =~ "What&#39;s your name?"
+    assert html =~ "Alice (You)"
+  end
+
+  test "modal stays closed when remounting after skipping", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/room/ABC234")
+    view |> element("button[phx-click='skip_name']") |> render_click()
+
+    {:ok, view2, _html} = live(conn, ~p"/room/ABC234")
+    html = render(view2)
+    refute html =~ "What&#39;s your name?"
+  end
+
   test "leave room button navigates back to solo timer", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/room/ABC234")
     assert has_element?(view, "#leave-room-btn")
