@@ -16,7 +16,10 @@ defmodule TomatoWeb.RoomLive do
 
     user_id = session["user_id"]
     user_data = Tomato.UserStore.get(user_id)
-    display_name = (user_data && user_data.display_name) || "Tomato-#{String.slice(user_id, 0, 4)}"
+
+    display_name =
+      (user_data && user_data.display_name) || "Tomato-#{String.slice(user_id, 0, 4)}"
+
     topic = "room:#{code}"
 
     {seconds_remaining, status, phase, pomodoro_count} =
@@ -178,7 +181,7 @@ defmodule TomatoWeb.RoomLive do
               >
                 <p class="text-xs font-medium truncate">
                   <%= if uid == @user_id do %>
-                    <%= if @has_custom_name, do: "#{@display_name} (You)", else: "You" %>
+                    {if @has_custom_name, do: "#{@display_name} (You)", else: "You"}
                   <% else %>
                     {member.display_name}
                   <% end %>
@@ -244,7 +247,7 @@ defmodule TomatoWeb.RoomLive do
           <div class="modal-box">
             <h3 class="font-bold text-lg">What's your name?</h3>
             <p class="py-2 text-sm text-base-content/60">
-              It will appear on your countdown card in the room.
+              It will appear on your countdown card in the Room.
             </p>
             <form phx-submit="set_name">
               <input
@@ -322,7 +325,8 @@ defmodule TomatoWeb.RoomLive do
       phase: socket.assigns.phase
     })
 
-    {:noreply, assign(socket, display_name: display_name, name_set: true, has_custom_name: name != "")}
+    {:noreply,
+     assign(socket, display_name: display_name, name_set: true, has_custom_name: name != "")}
   end
 
   def handle_event("skip_name", _, socket) do
