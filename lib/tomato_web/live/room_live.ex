@@ -286,7 +286,15 @@ defmodule TomatoWeb.RoomLive do
   end
 
   def handle_event("set_phase", %{"phase" => phase_str}, socket) do
-    phase = String.to_existing_atom(phase_str)
+    phase =
+      try do
+        String.to_existing_atom(phase_str)
+      rescue
+        ArgumentError ->
+          # Ignore invalid phase values from the client and keep current phase
+          socket.assigns.phase
+      end
+
     TimerServer.set_phase(socket.assigns.user_id, socket.assigns.room_code, phase)
     {:noreply, socket}
   end
