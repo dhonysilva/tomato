@@ -163,10 +163,21 @@ defmodule TomatoWeb.TimerLive do
   end
 
   def handle_event("set_phase", %{"phase" => phase_str}, socket) do
-    phase = String.to_existing_atom(phase_str)
-    TimerServer.set_phase(socket.assigns.user_id, :solo, phase)
-    {:noreply, socket}
+    case parse_phase(phase_str) do
+      {:ok, phase} ->
+        TimerServer.set_phase(socket.assigns.user_id, :solo, phase)
+        {:noreply, socket}
+
+      :error ->
+        # Ignore invalid phase values to avoid crashing the LiveView
+        {:noreply, socket}
+    end
   end
+
+  defp parse_phase("focus"), do: {:ok, :focus}
+  defp parse_phase("short_break"), do: {:ok, :short_break}
+  defp parse_phase("long_break"), do: {:ok, :long_break}
+  defp parse_phase(_), do: :error
 
   def handle_info({:timer_update, payload}, socket) do
     {:noreply,
