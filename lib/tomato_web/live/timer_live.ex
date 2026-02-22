@@ -42,8 +42,10 @@ defmodule TomatoWeb.TimerLive do
     ~H"""
     <Layouts.app flash={@flash}>
       <div class="flex flex-col items-center justify-center min-h-[60vh]" id="timer-container">
-        <div class="tabs tabs-boxed mb-4" id="phase-selector">
+        <div class="tabs tabs-boxed mb-4" id="phase-selector" role="tablist" aria-label="Timer phase">
           <button
+            role="tab"
+            aria-selected={@phase == :focus}
             class={["tab", @phase == :focus && "tab-active"]}
             phx-click="set_phase"
             phx-value-phase="focus"
@@ -51,6 +53,8 @@ defmodule TomatoWeb.TimerLive do
             Focus
           </button>
           <button
+            role="tab"
+            aria-selected={@phase == :short_break}
             class={["tab", @phase == :short_break && "tab-active"]}
             phx-click="set_phase"
             phx-value-phase="short_break"
@@ -58,6 +62,8 @@ defmodule TomatoWeb.TimerLive do
             Short Break
           </button>
           <button
+            role="tab"
+            aria-selected={@phase == :long_break}
             class={["tab", @phase == :long_break && "tab-active"]}
             phx-click="set_phase"
             phx-value-phase="long_break"
