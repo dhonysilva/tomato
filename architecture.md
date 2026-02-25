@@ -62,7 +62,7 @@ The `TimerServer` GenServer is the single source of truth for timer state. All L
 
 ```mermaid
 stateDiagram-v2
-    [*] --> stopped_focus : init (25:00)
+    [*] --> stopped_focus : init
 
     stopped_focus --> running_focus : start
     running_focus --> paused_focus : pause
