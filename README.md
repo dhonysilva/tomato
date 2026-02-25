@@ -24,7 +24,7 @@ Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
 ## Next steps
 
-- [ ] Architecture diagram present the PubSub, Presence and Agent modules.
+- [ ] Architecture diagram presenting the PubSub, Presence and Agent modules.
 - [ ] Logo and design assets
 - [ ] Description of the application
 - [ ] Video explanation of the application
