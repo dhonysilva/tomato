@@ -11,6 +11,12 @@ Tomato Focus offers the following basic features:
 * Pomodoro timer with intervals and breaks where you can work alone
 * Room where you can work with others. Ideally to students who want to work together and stay focused on tight deadlines.
 
+## Data Flow Architecture
+
+Here a simple description on how the PubSub works.
+
+![PubSub](priv/static/03_pubsub_fanout_hq.gif)
+
 ## Technical details
 
 This is a Phoenix web application built with Elixir and Erlang. It uses the Phoenix framework for building web applications and the Elixir language for the backend.
