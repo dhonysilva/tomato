@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimerServer State Machine</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+  }
+  h1 { font-size: 18px; color: #94a3b8; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+  .machine {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 720px;
+  }
+
+  /* State nodes */
+  .state-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .state {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 2px solid #334155;
+    background: #1e293b;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.4s ease;
+    position: relative;
+    text-align: center;
+    min-width: 130px;
+  }
+  .state.active {
+    border-color: #f97316;
+    background: #431407;
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+    transform: scale(1.08);
+  }
+  .state .label { font-size: 13px; }
+  .state .detail {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+  .state.focus-state { border-color: #ef4444; }
+  .state.focus-state.active { border-color: #f97316; background: #431407; }
+  .state.short-state { border-color: #22c55e; }
+  .state.short-state.active { border-color: #22c55e; background: #052e16; box-shadow: 0 0 20px rgba(34,197,94,0.3); }
+  .state.long-state { border-color: #3b82f6; }
+  .state.long-state.active { border-color: #3b82f6; background: #172554; box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+
+  /* Arrow area */
+  .arrow-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 28px;
+    font-size: 12px;
+    color: #64748b;
+    transition: color 0.3s;
+  }
+  .arrow-area.active { color: #f97316; }
+  .arrow-area .arrow-char { font-size: 18px; }
+
+  /* Timer display */
+  .timer-display {
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 14px;
+    padding: 16px 32px;
+    text-align: center;
+    margin: 8px 0;
+    min-width: 260px;
+  }
+  .timer-display .time {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer-display .phase-label {
+    font-size: 12px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+  .timer-display .pomodoro-count {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 6px;
+  }
+  .pomodoro-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  .pomodoro-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #334155;
+    transition: background 0.3s;
+  }
+  .pomodoro-dot.filled { background: #f97316; }
+
+  /* Event log */
+  .event-log {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px 16px;
+    width: 100%;
+    max-width: 720px;
+    margin-top: 12px;
+    max-height: 170px;
+    overflow-y: auto;
+  }
+  .event-log .log-title {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .event-entry {
+    font-size: 12px;
+    padding: 3px 0;
+    border-bottom: 1px solid #1a2332;
+    display: flex;
+    gap: 8px;
+    animation: fadeIn 0.3s ease;
+  }
+  .event-entry .ev-time { color: #64748b; min-width: 44px; }
+  .event-entry .ev-action { color: #f97316; min-width: 110px; }
+  .event-entry .ev-detail { color: #94a3b8; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  button {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: 1px solid #475569;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  button:hover { background: #334155; }
+  button.primary { background: #f97316; border-color: #f97316; color: #fff; }
+  button.primary:hover { background: #ea580c; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .speed-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+  .speed-control button { padding: 4px 10px; font-size: 11px; }
+  .speed-control button.active-speed { border-color: #f97316; color: #f97316; }
+
+  .code-hint {
+    font-size: 11px;
+    color: #475569;
+    background: #0f172a;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #1e293b;
+    max-width: 720px;
+    width: 100%;
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+  .code-hint code {
+    color: #f97316;
+    background: #1e293b;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<h1>TimerServer State Machine</h1>
+<div class="subtitle">Tomato.TimerServer &mdash; GenServer flow visualization</div>
+
+<div class="machine">
+  <!-- States row: focus -->
+  <div class="state-row">
+    <div class="state focus-state active" id="s-stopped-focus">
+      <div class="label">stopped:focus</div>
+      <div class="detail">25:00 initial</div>
+    </div>
+    <div class="state focus-state" id="s-running-focus">
+      <div class="label">running:focus</div>
+      <div class="detail">tick every 1s</div>
+    </div>
+    <div class="state focus-state" id="s-paused-focus">
+      <div class="label">paused:focus</div>
+      <div class="detail">timer_ref: nil</div>
+    </div>
+  </div>
+
+  <div class="arrow-area" id="arrow-focus-break">
+    <span class="arrow-char">&#8595;</span>
+    <span id="arrow-label-fb">tick reaches 0 &rarr; auto-transition</span>
+  </div>
+
+  <!-- States row: breaks -->
+  <div class="state-row">
+    <div class="state short-state" id="s-running-short">
+      <div class="label">running:short_break</div>
+      <div class="detail">5:00 auto-start</div>
+    </div>
+    <div class="state long-state" id="s-running-long">
+      <div class="label">running:long_break</div>
+      <div class="detail">15:00 every 4th</div>
+    </div>
+  </div>
+
+  <div class="arrow-area" id="arrow-break-focus">
+    <span class="arrow-char">&#8593;</span>
+    <span>break ends &rarr; stopped:focus</span>
+  </div>
+
+  <!-- Timer -->
+  <div class="timer-display">
+    <div class="time" id="timer-time">25:00</div>
+    <div class="phase-label" id="timer-phase">Focus</div>
+    <div class="pomodoro-count" id="timer-pomodoro">Pomodoro: 0</div>
+    <div class="pomodoro-dots" id="pomodoro-dots">
+      <div class="pomodoro-dot" id="dot-0"></div>
+      <div class="pomodoro-dot" id="dot-1"></div>
+      <div class="pomodoro-dot" id="dot-2"></div>
+      <div class="pomodoro-dot" id="dot-3"></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="primary" id="btn-start">Start</button>
+    <button id="btn-pause" disabled>Pause</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+
+  <div class="speed-control">
+    <span>Speed:</span>
+    <button class="active-speed" data-speed="500">Fast</button>
+    <button data-speed="150">Faster</button>
+    <button data-speed="50">Instant</button>
+  </div>
+
+  <div class="code-hint">
+    Each tick: <code>Process.send_after(self(), :tick, 1000)</code> &mdash;
+    on pause: cancel <code>timer_ref</code>, don't schedule next tick &mdash;
+    on phase end: auto-transition via <code>handle_info(:tick)</code> when <code>seconds_remaining == 0</code>
+  </div>
+</div>
+
+<div class="event-log" id="event-log">
+  <div class="log-title">GenServer event log</div>
+</div>
+
+<script>
+const FOCUS = 25 * 60, SHORT = 5 * 60, LONG = 15 * 60;
+
+const state = {
+  status: 'stopped',     // stopped | running | paused
+  phase: 'focus',        // focus | short_break | long_break
+  seconds: FOCUS,
+  pomodoroCount: 0,
+  timerRef: null,
+  tickSpeed: 500,
+  step: 0,
+};
+
+const $ = id => document.getElementById(id);
+const allStates = ['s-stopped-focus','s-running-focus','s-paused-focus','s-running-short','s-running-long'];
+
+function setActive(id) {
+  allStates.forEach(s => $(s).classList.remove('active'));
+  if (id) $(id).classList.add('active');
+}
+
+function updateArrows() {
+  $('arrow-focus-break').classList.toggle('active', state.status === 'running' && state.phase === 'focus');
+  $('arrow-break-focus').classList.toggle('active', state.status === 'running' && state.phase !== 'focus');
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function render() {
+  $('timer-time').textContent = formatTime(state.seconds);
+  const phaseNames = { focus: 'Focus', short_break: 'Short Break', long_break: 'Long Break' };
+  $('timer-phase').textContent = phaseNames[state.phase];
+  $('timer-pomodoro').textContent = `Pomodoro: ${state.pomodoroCount}`;
+
+  for (let i = 0; i < 4; i++) {
+    $(`dot-${i}`).classList.toggle('filled', i < (state.pomodoroCount % 4 === 0 && state.pomodoroCount > 0 ? 4 : state.pomodoroCount % 4));
+  }
+  // Actually fill based on completed pomodoros in current cycle
+  const inCycle = state.pomodoroCount % 4;
+  for (let i = 0; i < 4; i++) {
+    $(`dot-${i}`).classList.toggle('filled', i < inCycle);
+  }
+
+  // Highlight active state node
+  if (state.phase === 'focus') {
+    if (state.status === 'stopped') setActive('s-stopped-focus');
+    else if (state.status === 'running') setActive('s-running-focus');
+    else setActive('s-paused-focus');
+  } else if (state.phase === 'short_break') {
+    setActive('s-running-short');
+  } else {
+    setActive('s-running-long');
+  }
+
+  updateArrows();
+
+  $('btn-start').disabled = state.status === 'running';
+  $('btn-pause').disabled = state.status !== 'running';
+}
+
+function log(action, detail) {
+  const el = $('event-log');
+  const entry = document.createElement('div');
+  entry.className = 'event-entry';
+  const t = formatTime(state.seconds);
+  entry.innerHTML = `<span class="ev-time">${t}</span><span class="ev-action">${action}</span><span class="ev-detail">${detail}</span>`;
+  el.appendChild(entry);
+  el.scrollTop = el.scrollHeight;
+}
+
+function tick() {
+  if (state.status !== 'running') return;
+
+  state.seconds--;
+
+  if (state.seconds <= 0) {
+    if (state.phase === 'focus') {
+      state.pomodoroCount++;
+      const isLong = state.pomodoroCount % 4 === 0;
+      const nextPhase = isLong ? 'long_break' : 'short_break';
+      const nextSeconds = isLong ? LONG : SHORT;
+
+      log('tick → 0', `focus ended, pomodoro #${state.pomodoroCount}`);
+      log('auto-transition', `→ ${nextPhase} (${formatTime(nextSeconds)})`);
+
+      state.phase = nextPhase;
+      state.seconds = nextSeconds;
+      state.status = 'running';
+    } else {
+      log('tick → 0', `${state.phase} ended`);
+      log('auto-transition', '→ stopped:focus (25:00)');
+
+      state.phase = 'focus';
+      state.seconds = FOCUS;
+      state.status = 'stopped';
+      clearInterval(state.timerRef);
+      state.timerRef = null;
+      render();
+      return;
+    }
+  }
+
+  render();
+}
+
+// Controls
+$('btn-start').addEventListener('click', () => {
+  if (state.timerRef) clearInterval(state.timerRef);
+  if (state.seconds === 0) {
+    state.seconds = state.phase === 'focus' ? FOCUS : state.phase === 'short_break' ? SHORT : LONG;
+  }
+  state.status = 'running';
+  log('handle_call', ':start → status: :running');
+  log('broadcast', `{:timer_update, %{status: :running, phase: :${state.phase}}}`);
+  state.timerRef = setInterval(tick, state.tickSpeed);
+  render();
+});
+
+$('btn-pause').addEventListener('click', () => {
+  state.status = 'paused';
+  clearInterval(state.timerRef);
+  state.timerRef = null;
+  log('handle_call', ':pause → cancel timer_ref');
+  log('broadcast', `{:timer_update, %{status: :paused}}`);
+  render();
+});
+
+$('btn-reset').addEventListener('click', () => {
+  state.status = 'stopped';
+  clearInterval(state.timerRef);
+  state.timerRef = null;
+  const phaseS = state.phase === 'focus' ? FOCUS : state.phase === 'short_break' ? SHORT : LONG;
+  state.seconds = phaseS;
+  log('handle_call', ':reset → phase_seconds(:' + state.phase + ')');
+  log('broadcast', `{:timer_update, %{status: :stopped}}`);
+  render();
+});
+
+// Speed control
+document.querySelectorAll('.speed-control button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.speed-control button').forEach(b => b.classList.remove('active-speed'));
+    btn.classList.add('active-speed');
+    state.tickSpeed = parseInt(btn.dataset.speed);
+    if (state.timerRef) {
+      clearInterval(state.timerRef);
+      state.timerRef = setInterval(tick, state.tickSpeed);
+    }
+  });
+});
+
+// Initial
+log('init/1', 'state = %{status: :stopped, phase: :focus, seconds: 1500}');
+render();
+</script>
+</body>
+</html>
