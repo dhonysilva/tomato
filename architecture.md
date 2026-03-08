@@ -66,25 +66,14 @@ stateDiagram-v2
 
     stopped_focus --> running_focus : start
     running_focus --> paused_focus : pause
-    paused_focus --> running_focus : start (resume)
+    paused_focus --> running_focus : resume
     running_focus --> stopped_focus : reset
 
-    running_focus --> running_short_break : tick reaches 0\npomodoro_count++ (1-3)
-    running_focus --> running_long_break : tick reaches 0\npomodoro_count++ (4th, rem==0)
+    running_focus --> running_short_break : tick=0, count++ (1-3)
+    running_focus --> running_long_break : tick=0, count++ (4th)
 
-    running_short_break --> stopped_focus : tick reaches 0
-    running_long_break --> stopped_focus : tick reaches 0
-
-    note right of running_focus
-        :tick every 1 000 ms
-        via Process.send_after
-    end note
-
-    note right of running_short_break
-        Auto-starts (5:00)
-        User must manually
-        start next focus
-    end note
+    running_short_break --> stopped_focus : tick=0 (auto, 5min)
+    running_long_break --> stopped_focus : tick=0 (auto, 15min)
 ```
 
 **Tick scheduling** — idiomatic Erlang self-scheduling loop. No `setInterval`. Each tick schedules exactly one next tick, making pause trivial (just don't schedule the next one):
