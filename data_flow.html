@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tomato — Data Flow Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #f0f4f8;
+    color: #1e293b;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    padding: 48px 24px 12px;
+  }
+  .header .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6366f1;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 20px;
+    padding: 6px 16px;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 15px;
+    color: #64748b;
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── Section titles ── */
+  .section-title {
+    text-align: center;
+    margin: 48px 0 24px;
+  }
+  .section-title .label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6366f1;
+    margin-bottom: 8px;
+  }
+  .section-title h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  /* ── Flow container ── */
+  .flow-container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 24px 64px;
+    position: relative;
+  }
+
+  /* ── Node cards ── */
+  .node {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+    transition: box-shadow 0.3s, border-color 0.3s;
+  }
+  .node:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border-color: #c7d2fe;
+  }
+  .node.active {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12), 0 4px 20px rgba(0,0,0,0.06);
+  }
+
+  .node-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .node-icon.purple { background: #eef2ff; color: #6366f1; }
+  .node-icon.orange { background: #fff7ed; color: #ea580c; }
+  .node-icon.green  { background: #ecfdf5; color: #059669; }
+  .node-icon.blue   { background: #eff6ff; color: #2563eb; }
+  .node-icon.rose   { background: #fff1f2; color: #e11d48; }
+  .node-icon.teal   { background: #f0fdfa; color: #0d9488; }
+
+  .node-text h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+  .node-text p {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+
+  .node-badges {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .tag.elixir  { background: #f3e8ff; color: #7c3aed; }
+  .tag.otp     { background: #ecfdf5; color: #059669; }
+  .tag.phoenix { background: #fff7ed; color: #ea580c; }
+  .tag.js      { background: #fef9c3; color: #a16207; }
+
+  /* ── Connector lines with animated dots ── */
+  .connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 56px;
+    position: relative;
+    z-index: 1;
+  }
+  .connector-line {
+    width: 2px;
+    flex: 1;
+    background: repeating-linear-gradient(
+      to bottom,
+      #cbd5e1 0px,
+      #cbd5e1 6px,
+      transparent 6px,
+      transparent 12px
+    );
+    position: relative;
+    overflow: visible;
+  }
+
+  /* Animated dot traveling down the connector */
+  .connector-line::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6366f1;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: dot-down 1.8s ease-in-out infinite;
+    box-shadow: 0 0 8px rgba(99,102,241,0.5);
+  }
+  @keyframes dot-down {
+    0%   { top: -4px; opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { top: calc(100% - 4px); opacity: 0; }
+  }
+
+  .connector-label {
+    font-size: 11px;
+    color: #94a3b8;
+    font-weight: 500;
+    background: #f0f4f8;
+    padding: 0 8px;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: calc(50% + 12px);
+    white-space: nowrap;
+  }
+
+  /* ── Variations for different connector colors ── */
+  .connector.orange .connector-line::after { background: #ea580c; box-shadow: 0 0 8px rgba(234,88,12,0.5); }
+  .connector.green .connector-line::after  { background: #059669; box-shadow: 0 0 8px rgba(5,150,105,0.5); }
+  .connector.blue .connector-line::after   { background: #2563eb; box-shadow: 0 0 8px rgba(37,99,235,0.5); }
+  .connector.rose .connector-line::after   { background: #e11d48; box-shadow: 0 0 8px rgba(225,29,72,0.5); }
+
+  /* Reverse direction (dot going up) */
+  .connector.up .connector-line::after {
+    animation: dot-up 1.8s ease-in-out infinite;
+  }
+  @keyframes dot-up {
+    0%   { top: calc(100% - 4px); opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { top: -4px; opacity: 0; }
+  }
+
+  /* ── Tick Loop Card ── */
+  .tick-loop-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    margin: 32px auto;
+    max-width: 480px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  }
+  .tick-loop-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tick-loop-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 20px 0;
+    position: relative;
+  }
+
+  .tick-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    text-align: center;
+    min-width: 100px;
+    position: relative;
+    z-index: 2;
+  }
+  .tick-box .tick-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+  }
+  .tick-box .tick-detail {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+  .tick-box.highlight {
+    border-color: #6366f1;
+    background: #eef2ff;
+  }
+  .tick-box.highlight .tick-title { color: #4338ca; }
+
+  .tick-arrow {
+    position: relative;
+    width: 48px;
+    height: 2px;
+    background: repeating-linear-gradient(
+      to right,
+      #cbd5e1 0px,
+      #cbd5e1 4px,
+      transparent 4px,
+      transparent 8px
+    );
+    flex-shrink: 0;
+  }
+  .tick-arrow::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-left: 6px solid #94a3b8;
+  }
+  /* Animated dot on horizontal arrows */
+  .tick-arrow::before {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #6366f1;
+    top: 50%;
+    transform: translateY(-50%);
+    animation: dot-right 1.4s ease-in-out infinite;
+    box-shadow: 0 0 6px rgba(99,102,241,0.5);
+  }
+  @keyframes dot-right {
+    0%   { left: -3px; opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { left: calc(100% - 3px); opacity: 0; }
+  }
+
+  /* Return arrow (curved) */
+  .tick-return {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 260px;
+    height: 36px;
+    border: 2px dashed #c7d2fe;
+    border-top: none;
+    border-radius: 0 0 20px 20px;
+    overflow: visible;
+  }
+  .tick-return::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #818cf8;
+    box-shadow: 0 0 6px rgba(129,140,248,0.6);
+    animation: dot-return 2.4s ease-in-out infinite;
+  }
+  @keyframes dot-return {
+    0%   { right: -3px; top: -1px; opacity: 0; }
+    10%  { opacity: 1; }
+    40%  { right: calc(100% - 3px); top: -1px; }
+    60%  { right: calc(100% - 3px); top: calc(100% - 3px); }
+    90%  { opacity: 1; }
+    100% { right: -3px; top: calc(100% - 3px); opacity: 0; }
+  }
+  .tick-return-label {
+    position: absolute;
+    bottom: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #818cf8;
+    font-weight: 500;
+    white-space: nowrap;
+    background: #fff;
+    padding: 0 6px;
+  }
+
+  /* ── Supervision tree card ── */
+  .sup-tree {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    margin: 0 auto;
+    max-width: 480px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03);
+  }
+  .sup-tree h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sup-node {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 13px;
+    transition: background 0.2s;
+  }
+  .sup-node:hover { background: #f8fafc; }
+  .sup-node.indent-1 { margin-left: 24px; }
+  .sup-node.indent-2 { margin-left: 48px; }
+
+  .sup-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sup-dot.purple { background: #6366f1; }
+  .sup-dot.orange { background: #ea580c; }
+  .sup-dot.green  { background: #059669; }
+  .sup-dot.blue   { background: #2563eb; }
+  .sup-dot.teal   { background: #0d9488; }
+  .sup-dot.gray   { background: #94a3b8; }
+
+  .sup-name { font-weight: 500; color: #334155; }
+  .sup-desc { color: #94a3b8; font-size: 11px; margin-left: auto; }
+
+  /* Pulse animation for "live" processes */
+  .sup-dot.pulse {
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+    50%      { box-shadow: 0 0 0 4px rgba(99,102,241,0); }
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 48px 24px;
+    color: #94a3b8;
+    font-size: 12px;
+  }
+  .footer code {
+    background: #e2e8f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #475569;
+  }
+
+  /* ── Stagger animations for entrance ── */
+  .flow-container .node,
+  .flow-container .connector {
+    opacity: 0;
+    animation: slide-up 0.5s ease forwards;
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .flow-container > :nth-child(1)  { animation-delay: 0.1s; }
+  .flow-container > :nth-child(2)  { animation-delay: 0.2s; }
+  .flow-container > :nth-child(3)  { animation-delay: 0.3s; }
+  .flow-container > :nth-child(4)  { animation-delay: 0.4s; }
+  .flow-container > :nth-child(5)  { animation-delay: 0.5s; }
+  .flow-container > :nth-child(6)  { animation-delay: 0.6s; }
+  .flow-container > :nth-child(7)  { animation-delay: 0.7s; }
+  .flow-container > :nth-child(8)  { animation-delay: 0.8s; }
+  .flow-container > :nth-child(9)  { animation-delay: 0.9s; }
+  .flow-container > :nth-child(10) { animation-delay: 1.0s; }
+  .flow-container > :nth-child(11) { animation-delay: 1.1s; }
+  .flow-container > :nth-child(12) { animation-delay: 1.2s; }
+  .flow-container > :nth-child(13) { animation-delay: 1.3s; }
+
+  /* ── Pause on hover ── */
+  .connector:hover .connector-line::after {
+    animation-play-state: paused;
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ HEADER ════════════════════ -->
+<div class="header">
+  <div class="badge">Data Flow</div>
+  <h1>Tomato Focus Architecture</h1>
+  <p>How a user click flows through LiveView, GenServer, and PubSub back to the browser in real time.</p>
+</div>
+
+<!-- ════════════════════ REQUEST FLOW ════════════════════ -->
+<div class="section-title">
+  <div class="label">Request Flow</div>
+  <h2>From Click to Re-render</h2>
+</div>
+
+<div class="flow-container">
+
+  <!-- 1. Browser -->
+  <div class="node">
+    <div class="node-icon purple">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 22h10M12 18v4"/></svg>
+    </div>
+    <div class="node-text">
+      <h3>Browser</h3>
+      <p>User clicks Start, Pause, or Reset</p>
+    </div>
+    <div class="node-badges"><span class="tag js">WebSocket</span></div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector">
+    <div class="connector-line">
+      <div class="connector-label">phx-click event</div>
+    </div>
+  </div>
+
+  <!-- 2. LiveView -->
+  <div class="node">
+    <div class="node-icon orange">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="node-text">
+      <h3>LiveView</h3>
+      <p>TimerLive or RoomLive handle_event/3</p>
+    </div>
+    <div class="node-badges"><span class="tag phoenix">Phoenix</span></div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector orange">
+    <div class="connector-line">
+      <div class="connector-label">GenServer.call(via_tuple, :start)</div>
+    </div>
+  </div>
+
+  <!-- 3. TimerServer -->
+  <div class="node active">
+    <div class="node-icon green">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    </div>
+    <div class="node-text">
+      <h3>TimerServer</h3>
+      <p>GenServer — single source of truth</p>
+    </div>
+    <div class="node-badges">
+      <span class="tag otp">GenServer</span>
+    </div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector green">
+    <div class="connector-line">
+      <div class="connector-label">broadcast(new_state)</div>
+    </div>
+  </div>
+
+  <!-- 4. PubSub -->
+  <div class="node">
+    <div class="node-icon blue">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+    </div>
+    <div class="node-text">
+      <h3>Phoenix.PubSub</h3>
+      <p>{:timer_update, payload} to topic</p>
+    </div>
+    <div class="node-badges"><span class="tag phoenix">PubSub</span></div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector blue">
+    <div class="connector-line">
+      <div class="connector-label">handle_info({:timer_update, ...})</div>
+    </div>
+  </div>
+
+  <!-- 5. LiveView (subscriber) -->
+  <div class="node">
+    <div class="node-icon orange">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="node-text">
+      <h3>LiveView (subscriber)</h3>
+      <p>All connected LiveViews receive update</p>
+    </div>
+    <div class="node-badges"><span class="tag phoenix">LiveView</span></div>
+  </div>
+
+  <!-- Connector -->
+  <div class="connector up rose">
+    <div class="connector-line">
+      <div class="connector-label">assign + re-render diff</div>
+    </div>
+  </div>
+
+  <!-- 6. Browser (updated) -->
+  <div class="node">
+    <div class="node-icon purple">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 22h10M12 18v4"/></svg>
+    </div>
+    <div class="node-text">
+      <h3>Browser (updated)</h3>
+      <p>DOM patched with new timer state</p>
+    </div>
+    <div class="node-badges"><span class="tag js">morphdom</span></div>
+  </div>
+
+</div>
+
+<!-- ════════════════════ TICK LOOP ════════════════════ -->
+<div class="section-title">
+  <div class="label">Self-Scheduling Loop</div>
+  <h2>The Tick Mechanism</h2>
+</div>
+
+<div class="tick-loop-card">
+  <h3>
+    <svg width="18" height="18" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+    TimerServer tick loop
+  </h3>
+
+  <div class="tick-loop-visual">
+    <div class="tick-box highlight">
+      <div class="tick-title">TimerServer</div>
+      <div class="tick-detail">handle_info(:tick)</div>
+    </div>
+
+    <div class="tick-arrow"></div>
+
+    <div class="tick-box">
+      <div class="tick-title">seconds - 1</div>
+      <div class="tick-detail">decrement</div>
+    </div>
+
+    <div class="tick-arrow"></div>
+
+    <div class="tick-box">
+      <div class="tick-title">broadcast</div>
+      <div class="tick-detail">PubSub</div>
+    </div>
+
+    <!-- Return arc -->
+    <div class="tick-return">
+      <div class="tick-return-label">Process.send_after(self(), :tick, 1000)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ SUPERVISION TREE ════════════════════ -->
+<div class="section-title" style="margin-top: 56px;">
+  <div class="label">OTP Supervision</div>
+  <h2>Process Tree</h2>
+</div>
+
+<div class="sup-tree" style="margin-bottom: 48px;">
+  <h3>
+    <svg width="18" height="18" fill="none" stroke="#6366f1" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v1H6a3 3 0 00-3 3v2a3 3 0 003 3h3v1a3 3 0 006 0v-1h3a3 3 0 003-3V9a3 3 0 00-3-3h-3V5a3 3 0 00-3-3z"/></svg>
+    Tomato.Supervisor
+    <span style="font-size:11px; color:#94a3b8; font-weight:400; margin-left:auto;">strategy: one_for_one</span>
+  </h3>
+
+  <div class="sup-node">
+    <div class="sup-dot blue"></div>
+    <span class="sup-name">Phoenix.PubSub</span>
+    <span class="sup-desc">message bus</span>
+  </div>
+  <div class="sup-node">
+    <div class="sup-dot teal"></div>
+    <span class="sup-name">TomatoWeb.Presence</span>
+    <span class="sup-desc">room members</span>
+  </div>
+  <div class="sup-node">
+    <div class="sup-dot purple pulse"></div>
+    <span class="sup-name">Tomato.TimerRegistry</span>
+    <span class="sup-desc">{user_id, scope} &rarr; pid</span>
+  </div>
+  <div class="sup-node">
+    <div class="sup-dot green pulse"></div>
+    <span class="sup-name">Tomato.TimerSupervisor</span>
+    <span class="sup-desc">DynamicSupervisor</span>
+  </div>
+  <div class="sup-node indent-1">
+    <div class="sup-dot green"></div>
+    <span class="sup-name">TimerServer</span>
+    <span class="sup-desc">user_1 :solo</span>
+  </div>
+  <div class="sup-node indent-1">
+    <div class="sup-dot green"></div>
+    <span class="sup-name">TimerServer</span>
+    <span class="sup-desc">user_1 room:ABC234</span>
+  </div>
+  <div class="sup-node indent-1">
+    <div class="sup-dot green"></div>
+    <span class="sup-name">TimerServer</span>
+    <span class="sup-desc">user_2 room:ABC234</span>
+  </div>
+  <div class="sup-node">
+    <div class="sup-dot orange"></div>
+    <span class="sup-name">Tomato.UserStore</span>
+    <span class="sup-desc">Agent — display names</span>
+  </div>
+  <div class="sup-node">
+    <div class="sup-dot gray"></div>
+    <span class="sup-name">TomatoWeb.Endpoint</span>
+    <span class="sup-desc">HTTP + WebSocket</span>
+  </div>
+</div>
+
+<!-- ════════════════════ FOOTER ════════════════════ -->
+<div class="footer">
+  <p>Built with <code>Phoenix 1.8</code> + <code>LiveView 1.1</code> + <code>OTP GenServer</code></p>
+</div>
+
+</body>
+</html>
